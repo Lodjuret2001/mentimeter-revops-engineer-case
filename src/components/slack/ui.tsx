@@ -85,19 +85,34 @@ export function SlackMessageText({ text, users }: { text: string; users: SlackUs
     .filter(Boolean)
     .sort((a, b) => b.length - a.length)
     .map(escapeRegExp);
-  if (names.length === 0) return <>{resolved}</>;
-  const pattern = new RegExp(`(@(?:${names.join('|')}))`, 'g');
-  const parts = resolved.split(pattern);
+  const mention = names.length > 0 ? new RegExp(`(@(?:${names.join('|')}))`, 'g') : null;
+  const tokens = resolved.split(/(<https?:\/\/[^|>]+\|[^>]+>|\*[^*\n]+\*)/g);
   return (
     <>
-      {parts.map((part, i) =>
-        i % 2 === 1 ? (
-          // biome-ignore lint/suspicious/noArrayIndexKey: plain text split, order is stable
-          <Mention key={i}>{part}</Mention>
-        ) : (
-          part
-        ),
-      )}
+      {tokens.map((token, i) => {
+        const key = `${i}-${token.slice(0, 12)}`;
+        const link = /^<(https?:\/\/[^|>]+)\|([^>]+)>$/.exec(token);
+        if (link) {
+          return (
+            <a
+              key={key}
+              href={link[1]}
+              className="text-[#1264a3] hover:underline dark:text-[#7ccbff]"
+            >
+              {link[2]}
+            </a>
+          );
+        }
+        if (/^\*[^*\n]+\*$/.test(token)) {
+          return <strong key={key}>{token.slice(1, -1)}</strong>;
+        }
+        if (!mention) return token;
+        return token
+          .split(mention)
+          .map((part, j) =>
+            j % 2 === 1 ? <Mention key={`${key}-${part}`}>{part}</Mention> : part,
+          );
+      })}
     </>
   );
 }

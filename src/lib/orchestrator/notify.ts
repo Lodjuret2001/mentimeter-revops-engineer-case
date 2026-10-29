@@ -9,7 +9,8 @@ const DEAL_DESK = '#deal-desk';
 
 const hash = (text: string) => createHash('sha1').update(text).digest('hex').slice(0, 12);
 
-const bullet = (f: Finding) => `• ${f.rule}: ${f.message}${f.field ? ` (${f.field})` : ''}`;
+const bullet = (f: Finding) =>
+  `•  ${f.message}${f.field ? `  →  field \`${f.field}\`` : ''}  (${f.rule})`;
 
 const statusLine: Record<CaseStatus, string> = {
   done: 'set up and billing created',
@@ -45,7 +46,10 @@ export async function notify(
   stripePastDue: boolean,
 ): Promise<string> {
   const o = ctx.opportunity;
-  const link = `<http://localhost:3000/orchestrator/${o.Id}|${o.Name}>`;
+  const caseUrl = `http://localhost:3000/orchestrator/${o.Id}`;
+  const dealUrl = `http://localhost:3000/deals/${o.Id}`;
+  const header = `*${o.Name}*  ·  ${ctx.account.Name}`;
+  const footer = `<${caseUrl}|Open in Menti Orchestrator>  ·  <${dealUrl}|Open in Salesforce>`;
   const forRep = record.findings.filter(
     (f) => f.owner === 'rep' && (f.severity === 'hold' || f.severity === 'block'),
   );
@@ -69,7 +73,7 @@ export async function notify(
     await dmByEmail(
       o.Id,
       ctx.owner.Email,
-      `${link}: ${statusLine[record.status]}. Needs you in Salesforce:\n${forRep.map(bullet).join('\n')}`,
+      `${header}\nStatus: ${statusLine[record.status]}.\n\nNeeds you in Salesforce:\n${forRep.map(bullet).join('\n')}\n\n${footer}`,
     );
   }
 
@@ -100,7 +104,7 @@ export async function notify(
     await post(
       o.Id,
       FINANCE,
-      `${link} (${statusLine[record.status]}):\n${financeLines.join('\n')}`,
+      `${header}\nStatus: ${statusLine[record.status]}.\n\n${financeLines.join('\n')}\n\n${footer}`,
     );
   }
 
@@ -108,7 +112,7 @@ export async function notify(
     await post(
       o.Id,
       DEAL_DESK,
-      `${link} is Closed Won but waiting on you:\n${forDealDesk.map(bullet).join('\n')}`,
+      `${header}\nClosed Won, but waiting on you:\n${forDealDesk.map(bullet).join('\n')}\n\n${footer}`,
     );
   }
 
@@ -125,7 +129,7 @@ export async function notify(
             (u.Region__c === 'EMEA' && ctx.account.Region__c !== 'North America')),
       );
     const onboarding = o.OpportunityLineItems.records.some((l) => l.ProductCode === 'ONB');
-    const text = `${link}: ${ctx.account.Name} is set up. Workspace ${record.executed.workspaceId}, subscription ${record.executed.subscriptionId}: ${o.Number_of_Licenses__c} ${o.Plan__c} from ${o.Start_Date__c}. Onboarding package: ${onboarding ? 'yes' : 'no'}.${record.status === 'held' ? ' Billing is on hold, access is not.' : ''}`;
+    const text = `${header}\n${ctx.account.Name} is set up and ready for kickoff.\n•  Workspace ${record.executed.workspaceId}, subscription ${record.executed.subscriptionId}\n•  ${o.Number_of_Licenses__c} ${o.Plan__c} licenses from ${o.Start_Date__c}\n•  Onboarding package: ${onboarding ? 'yes' : 'no'}${record.status === 'held' ? '\n•  Billing is on hold, access is not.' : ''}\n\n${footer}`;
     if (csm) await dmByEmail(o.Id, csm.Email, text);
     else
       log(o.Id, 'warn', 'notify', 'No CSM on the account or for the region', { system: 'slack' });
@@ -133,7 +137,7 @@ export async function notify(
 
   if (stripePastDue) {
     const credit = users.find((u) => /credit/i.test(u.Title));
-    const text = `${link}: card payment failed for ${record.executed.stripeSubscriptionId}. ${record.findings.find((f) => f.rule === 'CC')?.message ?? ''}`;
+    const text = `${header}\nCard payment failed for ${record.executed.stripeSubscriptionId}.\n•  ${record.findings.find((f) => f.rule === 'CC')?.message ?? ''}\n\n${footer}`;
     if (credit) await dmByEmail(o.Id, credit.Email, text);
     else await post(o.Id, FINANCE, text);
   }

@@ -102,7 +102,7 @@ export default async function HomePage() {
               <div key={m.ts} className="text-sm">
                 <div className="text-muted-foreground text-xs">
                   <span className="font-medium text-foreground">
-                    {slackUsers.find((u) => u.id === m.user)?.real_name ?? 'Your app'}
+                    {slackUsers.find((u) => u.id === m.user)?.real_name ?? 'Menti Orchestrator'}
                   </span>{' '}
                   {formatDateTime(m.postedAt)}
                 </div>

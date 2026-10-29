@@ -118,7 +118,7 @@ export default async function SlackPage(props: PageProps<'/slack'>) {
             ) : null}
             {timeline.map((m, i) => {
               const author = person(m.user);
-              const name = author?.real_name ?? 'Your app';
+              const name = author?.real_name ?? 'Menti Orchestrator';
               const isApp = !author || author.is_bot === true;
               const previous = timeline[i - 1];
               const newDay = !previous || slackDay(previous.postedAt) !== slackDay(m.postedAt);
@@ -134,7 +134,7 @@ export default async function SlackPage(props: PageProps<'/slack'>) {
                     {m.threadTs ? (
                       <CornerDownRight className="mt-2 size-4 shrink-0 text-muted-foreground" />
                     ) : null}
-                    <SlackAvatar id={m.user} name={author ? name : 'APP'} />
+                    <SlackAvatar id={m.user} name={author ? name : 'MO'} />
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-baseline gap-x-1.5 leading-tight">
                         <span className="font-black text-[15px]">{name}</span>
