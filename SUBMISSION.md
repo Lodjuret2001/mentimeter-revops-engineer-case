@@ -77,11 +77,26 @@ On this week's deals: 9 done, 6 set up with billing on hold, 2 blocked,
 
 ## Working with your AI tool
 
-Your first prompt, pasted as you wrote it:
+The whole session was in Swedish, dictated by voice. Your first prompt,
+pasted as I wrote it, with a translation underneath:
 
 > Okay, so jag har forkat ett repo och det här kommer vara då min business case för min ansökan som RevOps engineer. På Mentimeter. Och jag tror att mycket av det du behöver veta finns redan i detta forkade repot. Bland annat mina förhållanden, vad du ska förhålla dig till och liknande. Så jag vill att du börjar med att egentligen titta igenom allting så att du skapar dig en uppfattning av allting. Jag kommer använda mycket inspelning via röst. Så jag kommer inte skriva mycket, så ibland kanske de här texterna eller mina prompts till dig kommer vara lite grammatiskt fel kanske ibland att det står lite på engelska eller liknande för den speech-to-text-vägen. Är lite svajig ibland. Men jag vill att du försöker förstå där jag skriver. I någon slags overall kontext. Och när det är specifika saker och så vidare. Men börja med att kolla igenom projektet här. Och sen så ska vi ta oss an det och ge ungefär en 3 timmar från och med nu. Klockan är ungefär 15 just nu. Så vi är klockan 6 så är vi väl klara om inte innan.
 
-The full session export is in `docs/session/`.
+> *Translation:* Okay, so I have forked a repo and this will be my business
+> case for my application as RevOps Engineer at Mentimeter. I think most of
+> what you need to know is already in this forked repo, including my
+> constraints and what you should relate to. So I want you to start by
+> looking through everything so you form a picture of it all. I will mostly
+> use voice recording, so I will not write much, and sometimes these texts
+> or my prompts will be a bit grammatically off, or partly in English,
+> because the speech-to-text is a bit shaky. But I want you to try to
+> understand what I write in an overall context, and the specifics when
+> there are any. Start by looking through the project. Then we take it on,
+> with about 3 hours from now. It is about 15:00 now, so by 18:00 we should
+> be done, if not before.
+
+The full session export (Swedish) is in
+`docs/session/claude-code-session.txt`.
 
 Something your tool suggested or built that you changed or threw away:
 
@@ -97,11 +112,13 @@ Something your tool suggested or built that you changed or threw away:
 
 Roughly where you spent your time:
 
-- 1 h 15 understanding the business, data and current flow.
+- 1 h understanding the business, data and current flow.
 - 45 min deciding and building.
 - 1 h running it on the data, clicking through, fixing.
 - 15 min on this document.
 
 ## Video
 
-Link:
+[docs/video/menti-orchestrator-demo.mp4](docs/video/menti-orchestrator-demo.mp4),
+a screen recording with voice-over, in the repo. GitHub plays it in the
+browser.
