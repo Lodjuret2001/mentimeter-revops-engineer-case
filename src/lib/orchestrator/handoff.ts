@@ -34,7 +34,7 @@ export async function processOpportunity(
 
   const ctx = await collect(opportunityId);
   const assessment = assess(ctx);
-  const plan = buildPlan(ctx, assessment, previous);
+  const plan = buildPlan(ctx, assessment, ctx.existing);
   const now = new Date().toISOString();
 
   if (options.dryRun) {
@@ -55,7 +55,7 @@ export async function processOpportunity(
     };
   }
 
-  const result = await execute(ctx, plan, previous?.executed ?? {});
+  const result = await execute(ctx, plan, ctx.existing?.executed ?? {});
   const findings = [...assessment.findings, ...result.failures];
   const status = statusOf(assessment.derived.won, findings);
 
@@ -74,7 +74,7 @@ export async function processOpportunity(
     assessedAt: now,
     notifiedHash: previous?.notifiedHash,
     history: [
-      ...(previous?.history ?? []),
+      ...(ctx.existing?.history ?? []),
       {
         at: now,
         summary: `${options.trigger}: ${status}, ${result.ran.length} of ${plan.length} actions ran, ${findings.length} findings`,

@@ -1,7 +1,14 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { adminApp, kleer, salesforce, stripe } from '@/lib/connectors';
 import { readDb } from '@/lib/db';
-import { getCase, listCases, processEvent, processOpportunity, sync } from '@/lib/orchestrator';
+import {
+  getCase,
+  listCases,
+  processEvent,
+  processOpportunity,
+  resetState,
+  sync,
+} from '@/lib/orchestrator';
 
 const NORDLYS = '006Wb0000000hizAAI';
 const CORVID = '006Wb0000000w94AAP';
@@ -99,6 +106,20 @@ describe('the week, end to end', () => {
     expect(after.adminApp.subscriptions).toHaveLength(before.adminApp.subscriptions.length);
     expect(after.stripe.subscriptions).toHaveLength(before.stripe.subscriptions.length);
     expect(after.adminApp.workspaces).toHaveLength(before.adminApp.workspaces.length);
+  });
+
+  it('R5: losing its own memory does not make it create things twice', async () => {
+    const before = readDb();
+    resetState();
+    const again = await sync();
+    expect(again.handled).toBe(21);
+    const after = readDb();
+    expect(after.kleer.invoices).toHaveLength(before.kleer.invoices.length);
+    expect(after.adminApp.subscriptions).toHaveLength(before.adminApp.subscriptions.length);
+    expect(after.stripe.subscriptions).toHaveLength(before.stripe.subscriptions.length);
+    expect(after.adminApp.workspaces).toHaveLength(before.adminApp.workspaces.length);
+    expect(getCase(NORDLYS)?.status).toBe('done');
+    expect(getCase(NORDLYS)?.executed.subscriptionId).toBe('SUB-602');
   });
 
   it('R6: an add-on updates the existing subscription and prorates the invoice', async () => {
