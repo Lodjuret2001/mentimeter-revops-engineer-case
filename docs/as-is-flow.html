@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Closed Won hand-off, as-is</title>
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --fg: #1c1e24;
+    --muted: #7c818c;
+    --lane-a: #ffffff;
+    --lane-b: #eceef3;
+    --lane-line: #d3d7df;
+    --node: #ffffff;
+    --node-line: #b4bac6;
+    --chip: #e6e9ef;
+    --chip-fg: #3a3f4a;
+    --auto: #2b6fe0;
+    --manual: #e2780a;
+    --bad: #d8352b;
+    --dead: #98a0ac;
+    --badge: #1c1e24;
+    --badge-fg: #ffffff;
+    --strip: #e6e9ef;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1115;
+      --fg: #e6e8ec;
+      --muted: #8d93a0;
+      --lane-a: #15181e;
+      --lane-b: #1b1f27;
+      --lane-line: #2c313c;
+      --node: #222733;
+      --node-line: #424a59;
+      --chip: #2f3543;
+      --chip-fg: #d6dae2;
+      --auto: #6fa3ff;
+      --manual: #ffa23a;
+      --bad: #ff6a5e;
+      --dead: #6f7684;
+      --badge: #e8eaee;
+      --badge-fg: #15181e;
+      --strip: #1b1f27;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    padding: 20px 16px 32px;
+  }
+  header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 28px;
+    max-width: 1370px;
+    margin: 0 auto 12px;
+  }
+  h1 { font-size: 18px; font-weight: 650; margin: 0; letter-spacing: -0.01em; }
+  h1 span { color: var(--muted); font-weight: 500; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12px; color: var(--muted); margin-left: auto; }
+  .legend div { display: inline-flex; align-items: center; gap: 7px; }
+  .legend svg { display: block; overflow: visible; }
+  .scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .frame {
+    width: 1370px;
+    margin: 0 auto;
+  }
+  svg.diagram { display: block; width: 1370px; height: auto; font-family: inherit; }
+  svg text { fill: var(--fg); }
+  .lane-a { fill: var(--lane-a); }
+  .lane-b { fill: var(--lane-b); }
+  .lane-line { stroke: var(--lane-line); stroke-width: 1; }
+  .lane-label { font-size: 13px; font-weight: 650; fill: var(--fg); }
+  .node { fill: var(--node); stroke: var(--node-line); stroke-width: 1.2; }
+  .node.ghost { fill: none; stroke: var(--dead); stroke-dasharray: 4 3; }
+  .node-text { font-size: 13px; }
+  .ghost-text { fill: var(--muted); }
+  .chip { fill: var(--chip); }
+  .chip-text { font-size: 11px; fill: var(--chip-fg); font-weight: 600; }
+  .badge { fill: var(--badge); }
+  .badge-text { font-size: 11px; font-weight: 700; fill: var(--badge-fg); }
+  .warn { fill: var(--bad); }
+  .warn-bang { font-size: 11px; font-weight: 800; fill: #fff; }
+  .warn-text { font-size: 11px; font-weight: 650; fill: var(--bad); }
+  .e-auto { stroke: var(--auto); stroke-width: 2; fill: none; }
+  .e-manual { stroke: var(--manual); stroke-width: 2.2; fill: none; stroke-dasharray: 7 5; }
+  .e-dead { stroke: var(--dead); stroke-width: 1.6; fill: none; stroke-dasharray: 2 4; }
+  .mk-auto { fill: var(--auto); }
+  .mk-manual { fill: var(--manual); }
+  .mk-dead { stroke: var(--dead); fill: var(--bg); stroke-width: 1.4; }
+  .copy-bg { fill: var(--manual); }
+  .copy-back { fill: none; stroke: #fff; stroke-width: 1.2; }
+  .copy-front { fill: var(--manual); stroke: #fff; stroke-width: 1.2; }
+  .note { font-size: 11px; fill: var(--muted); }
+  .divider { stroke: var(--lane-line); stroke-width: 1; stroke-dasharray: 3 4; }
+  .strip-bg { fill: var(--strip); }
+  .strip-title { font-size: 11px; font-weight: 650; fill: var(--muted); letter-spacing: 0.02em; }
+  .pill { fill: var(--node); stroke: var(--node-line); stroke-width: 1; }
+  .pill.ghost { fill: none; stroke: var(--dead); stroke-dasharray: 4 3; }
+  .pill-text { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; }
+  .pill-text.ghost { fill: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Closed Won hand-off <span>· as-is, today</span></h1>
+  <div class="legend">
+    <div><svg width="34" height="10" viewBox="0 0 34 10"><line x1="0" y1="5" x2="26" y2="5" stroke="var(--auto)" stroke-width="2"/><path d="M26 1 L34 5 L26 9 z" fill="var(--auto)"/></svg>automatic</div>
+    <div><svg width="34" height="10" viewBox="0 0 34 10"><line x1="0" y1="5" x2="26" y2="5" stroke="var(--manual)" stroke-width="2.2" stroke-dasharray="7 5"/><path d="M26 1 L34 5 L26 9 z" fill="var(--manual)"/></svg><svg width="18" height="18" viewBox="-9 -9 18 18"><circle r="9" fill="var(--manual)"/><rect x="-4.5" y="-4.5" width="5.5" height="6.5" fill="none" stroke="#fff" stroke-width="1.2"/><rect x="-1" y="-2" width="5.5" height="6.5" fill="var(--manual)" stroke="#fff" stroke-width="1.2"/></svg>copied by hand</div>
+    <div><svg width="16" height="16" viewBox="-8 -8 16 16"><circle r="8" fill="var(--bad)"/><text y="4" text-anchor="middle" font-size="11" font-weight="800" fill="#fff">!</text></svg>goes wrong today</div>
+    <div><svg width="28" height="14" viewBox="0 0 28 14"><rect x="1" y="1" width="26" height="12" rx="3" fill="none" stroke="var(--dead)" stroke-dasharray="4 3"/></svg>dead end / stays empty</div>
+  </div>
+</header>
+
+<div class="scroll"><div class="frame"><svg class="diagram" id="diagram" xmlns="http://www.w3.org/2000/svg"></svg></div></div>
+
+<script>
+(function () {
+  'use strict';
+  // ---------- layout constants ----------
+  var W = 1370;
+  var LANE_X = 130;          // left edge of the swimlane area (lane labels live to the left)
+  var LANE_TOP = 28;
+  var LANE_H = 118;
+  var COL_W = 206;
+  var NODE_W = 172;
+  var NODE_H = 64;
+  var COL0 = LANE_X + COL_W / 2;      // centre x of column 0
+  var lanes = ['Salesforce', 'Slack', 'Admin app', 'Kleer', 'Stripe'];
+  var LANE_BOTTOM = LANE_TOP + lanes.length * LANE_H;
+  var STRIP_Y = LANE_BOTTOM + 22;
+  var H = STRIP_Y + 64;
+
+  function cx(c) { return COL0 + c * COL_W; }
+  function laneTop(l) { return LANE_TOP + l * LANE_H; }
+  function cy(l) { return laneTop(l) + LANE_H / 2; }
+  function nTop(l) { return laneTop(l) + (LANE_H - NODE_H) / 2; }
+  function nBottom(l) { return nTop(l) + NODE_H; }
+  function nLeft(c) { return cx(c) - NODE_W / 2; }
+  function nRight(c) { return cx(c) + NODE_W / 2; }
+
+  // ---------- data ----------
+  var nodes = [
+    { lane: 0, col: 0, n: '1', lines: ['Rep sets', 'Closed Won'], chips: ['Rep'], warn: 'empty or wrong fields',
+      tip: 'Nothing validates the opportunity: plan, seats, dates, PO or VAT can be empty or wrong.' },
+    { lane: 0, col: 1, ghost: true, lines: ['Webhook event', 'nobody listens'],
+      tip: 'Salesforce publishes an event, but no system subscribes to it today.' },
+    { lane: 0, col: 2, lines: ['Maja opens', 'the opportunity'], chips: ['Maja'],
+      tip: 'Maja reads plan, seats, dates, payment method, PO and VAT from the opportunity and account.' },
+    { lane: 0, col: 5, n: '6', ghost: true, lines: ['Subscription ID &', 'Invoice no. empty'], warn: 'no write-back',
+      tip: 'Nothing is written back to Salesforce after the hand-off.' },
+
+    { lane: 1, col: 1, n: '2', lines: ['#closed-won bot:', '🎉 Sam closed Nordlys'], chips: ['bot'],
+      tip: 'The only notification: a Salesforce bot posts to #closed-won.' },
+    { lane: 1, col: 4, n: '5', lines: ['#finance-billing:', '"PO? VAT number?"'], chips: ['Maja', 'Rep', 'Customer'], warn: 'PO / VAT missing',
+      tip: 'Maja asks in Slack, the rep asks the customer, days pass before the invoice can go out.' },
+    { lane: 1, col: 5, n: '6', lines: ['"Was my deal', 'invoiced?"'], chips: ['Rep', 'Kim'], warn: 'rep asks, Kim relays',
+      tip: 'Kim: "no good way to know".' },
+
+    { lane: 2, col: 2, n: '3', lines: ['Create workspace', '+ subscription'], chips: ['Maja'],
+      tip: 'Find or create the workspace; type in plan, seats, start and end by hand.' },
+    { lane: 2, col: 5, n: '10', lines: ['Kickoff on', 'start date'], chips: ['Lea', 'Customer'], warn: 'workspace late for kickoff',
+      tip: 'The kickoff is booked for the start date whether or not the workspace exists yet.' },
+
+    { lane: 3, col: 3, n: '4a', lines: ['Create + send', 'invoice (PO, VAT)'], chips: ['Maja'],
+      tip: 'If payment method is Invoice: find or create the Kleer customer, create invoice lines, period, PO, VAT. Send.' },
+    { lane: 3, col: 5, n: '9', lines: ['Credit in full,', 'new invoice'], chips: ['Maja'], warn: 'wrong data → credit note',
+      tip: 'E.g. 25 licenses invoiced instead of 52 because the rep typed it wrong in an email.' },
+
+    { lane: 4, col: 3, n: '4b', lines: ['Customer + sub,', 'card charged now'], chips: ['Maja'],
+      tip: 'If payment method is Card: create Stripe customer and subscription by hand; the card is charged immediately.' },
+    { lane: 4, col: 4, n: '7', ghost: true, lines: ['Old card sub', 'still active'], warn: 'keeps renewing',
+      tip: 'Customer moved to an invoiced Enterprise plan; the old card subscription must be cancelled by hand, and often is not.' },
+    { lane: 4, col: 5, n: '8', lines: ['Card payment', 'fails'], chips: ['Tom', 'Customer'], warn: 'failed card, nobody told',
+      tip: 'Nobody tells Tom until the customer loses access and calls the rep.' }
+  ];
+
+  var G = COL_W - NODE_W;                 // gap between columns (34)
+  var gutter23 = nRight(2) + G / 2;       // vertical bus between col 2 and col 3
+  var b01 = laneTop(1);                   // boundary Salesforce / Slack
+
+  var edges = [
+    // 1 -> webhook (dead end)
+    { kind: 'dead', pts: [[nRight(0), cy(0)], [nLeft(1), cy(0)]] },
+    // 1 -> Slack post (automatic)
+    { kind: 'auto', pts: [[cx(0), nBottom(0)], [cx(0), b01], [cx(1), b01], [cx(1), nTop(1)]] },
+    // Maja sees the post, opens the opp (manual)
+    { kind: 'manual', icon: 0.5, pts: [[cx(1) + 50, nTop(1)], [cx(1) + 50, b01 - 8], [cx(2) - 40, b01 - 8], [cx(2) - 40, nBottom(0)]] },
+    // opp -> admin app (manual copy)
+    { kind: 'manual', icon: 0.5, pts: [[cx(2), nBottom(0)], [cx(2), nTop(2)]] },
+    // opp -> Kleer (manual copy, via gutter bus)
+    { kind: 'manual', iconAt: [gutter23, cy(2)], pts: [[nRight(2), cy(0)], [gutter23, cy(0)], [gutter23, cy(3)], [nLeft(3), cy(3)]] },
+    // opp -> Stripe (manual copy, continues down the bus)
+    { kind: 'manual', iconAt: [gutter23, laneTop(4)], pts: [[gutter23, cy(3)], [gutter23, cy(4)], [nLeft(3), cy(4)]] },
+    // Kleer <-> Slack loop (ask for PO / VAT)
+    { kind: 'manual', pts: [[nRight(3), cy(3) - 10], [cx(4) - 17, cy(3) - 10], [cx(4) - 17, nBottom(1)]] },
+    { kind: 'manual', pts: [[cx(4) + 17, nBottom(1)], [cx(4) + 17, cy(3) + 10], [nRight(3), cy(3) + 10]] }
+  ];
+
+  var notes = [
+    { x: gutter23 - 8, y: cy(3) - 7, text: 'pays by invoice', anchor: 'end' },
+    { x: gutter23 - 8, y: cy(4) - 7, text: 'pays by card', anchor: 'end' },
+    { x: cx(4) + 25, y: cy(2) + 4, text: 'days pass', anchor: 'start' },
+    { x: cx(5), y: LANE_TOP - 9, text: 'later, days to weeks', anchor: 'middle' }
+  ];
+
+  var links = [
+    { from: 'Account.Workspace_ID', to: 'workspace' },
+    { from: 'Account.Kleer_Customer_Number', to: 'Kleer customer' },
+    { from: 'Stripe metadata.workspace_id', to: 'workspace' }
+  ];
+
+  // ---------- svg helpers ----------
+  var NS = 'http://www.w3.org/2000/svg';
+  function el(tag, attrs, parent) {
+    var e = document.createElementNS(NS, tag);
+    for (var k in attrs) { if (attrs.hasOwnProperty(k)) e.setAttribute(k, attrs[k]); }
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function txt(parent, x, y, s, cls, anchor) {
+    var t = el('text', { x: x, y: y, 'class': cls || '', 'text-anchor': anchor || 'middle' }, parent);
+    t.textContent = s;
+    return t;
+  }
+  function pathD(pts) {
+    var d = '';
+    for (var i = 0; i < pts.length; i++) d += (i ? ' L' : 'M') + pts[i][0] + ' ' + pts[i][1];
+    return d;
+  }
+  function pointAt(pts, f) { // point at fraction f of polyline length
+    var total = 0, segs = [], i;
+    for (i = 1; i < pts.length; i++) {
+      var len = Math.abs(pts[i][0] - pts[i - 1][0]) + Math.abs(pts[i][1] - pts[i - 1][1]);
+      segs.push(len); total += len;
+    }
+    var target = total * f, acc = 0;
+    for (i = 0; i < segs.length; i++) {
+      if (acc + segs[i] >= target) {
+        var r = segs[i] ? (target - acc) / segs[i] : 0;
+        return [pts[i][0] + (pts[i + 1][0] - pts[i][0]) * r, pts[i][1] + (pts[i + 1][1] - pts[i][1]) * r];
+      }
+      acc += segs[i];
+    }
+    return pts[pts.length - 1];
+  }
+  function copyIcon(parent, x, y) {
+    var g = el('g', { transform: 'translate(' + x + ' ' + y + ')' }, parent);
+    el('circle', { r: 9, 'class': 'copy-bg' }, g);
+    el('rect', { x: -4.5, y: -4.5, width: 5.5, height: 6.5, 'class': 'copy-back' }, g);
+    el('rect', { x: -1, y: -2, width: 5.5, height: 6.5, 'class': 'copy-front' }, g);
+    var t = el('title', {}, g); t.textContent = 'Copied by hand';
+  }
+
+  // ---------- build ----------
+  var svg = document.getElementById('diagram');
+  svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+  svg.setAttribute('width', W);
+  svg.setAttribute('height', H);
+
+  var defs = el('defs', {}, svg);
+  function arrow(id, cls) {
+    var m = el('marker', { id: id, viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' }, defs);
+    el('path', { d: 'M0 0 L10 5 L0 10 z', 'class': cls }, m);
+  }
+  arrow('m-auto', 'mk-auto');
+  arrow('m-manual', 'mk-manual');
+  var md = el('marker', { id: 'm-dead', viewBox: '0 0 12 12', refX: 6, refY: 6, markerWidth: 12, markerHeight: 12, markerUnits: 'userSpaceOnUse' }, defs);
+  el('circle', { cx: 6, cy: 6, r: 5, 'class': 'mk-dead' }, md);
+  el('path', { d: 'M3.5 3.5 L8.5 8.5 M8.5 3.5 L3.5 8.5', stroke: 'var(--dead)', 'stroke-width': 1.4 }, md);
+
+  // lanes
+  var gLanes = el('g', {}, svg);
+  lanes.forEach(function (name, i) {
+    el('rect', { x: 0, y: laneTop(i), width: W, height: LANE_H, 'class': i % 2 ? 'lane-b' : 'lane-a' }, gLanes);
+    el('line', { x1: 0, y1: laneTop(i), x2: W, y2: laneTop(i), 'class': 'lane-line' }, gLanes);
+    txt(gLanes, 16, cy(i) + 4, name, 'lane-label', 'start');
+  });
+  el('line', { x1: 0, y1: LANE_BOTTOM, x2: W, y2: LANE_BOTTOM, 'class': 'lane-line' }, gLanes);
+  el('line', { x1: LANE_X - 1, y1: LANE_TOP, x2: LANE_X - 1, y2: LANE_BOTTOM, 'class': 'lane-line' }, gLanes);
+  // "later" divider before the last column
+  var divX = (cx(4) + cx(5)) / 2;
+  el('line', { x1: divX, y1: LANE_TOP, x2: divX, y2: LANE_BOTTOM, 'class': 'divider' }, gLanes);
+
+  // edges
+  var gEdges = el('g', {}, svg);
+  edges.forEach(function (e) {
+    el('path', { d: pathD(e.pts), 'class': 'e-' + e.kind, 'marker-end': 'url(#m-' + e.kind + ')' }, gEdges);
+  });
+  // notes
+  notes.forEach(function (n) { txt(gEdges, n.x, n.y, n.text, 'note', n.anchor); });
+  // copy icons on top of the dashed lines
+  edges.forEach(function (e) {
+    var p = e.iconAt ? e.iconAt : (e.icon != null ? pointAt(e.pts, e.icon) : null);
+    if (p) copyIcon(gEdges, p[0], p[1]);
+  });
+
+  // nodes
+  var gNodes = el('g', {}, svg);
+  nodes.forEach(function (n) {
+    var x = nLeft(n.col), y = nTop(n.lane), r = nRight(n.col);
+    var g = el('g', {}, gNodes);
+    if (n.tip) { var t = el('title', {}, g); t.textContent = n.tip; }
+    el('rect', { x: x, y: y, width: NODE_W, height: NODE_H, rx: 8, 'class': 'node' + (n.ghost ? ' ghost' : '') }, g);
+    var hasChips = n.chips && n.chips.length;
+    var textCls = 'node-text' + (n.ghost ? ' ghost-text' : '');
+    if (n.lines.length === 1) {
+      txt(g, cx(n.col), y + (hasChips ? 28 : 36), n.lines[0], textCls);
+    } else {
+      var y1 = hasChips ? y + 20 : y + 27;
+      txt(g, cx(n.col), y1, n.lines[0], textCls);
+      txt(g, cx(n.col), y1 + 17, n.lines[1], textCls);
+    }
+    if (hasChips) {
+      var px = x + 8;
+      n.chips.forEach(function (c) {
+        var w = Math.round(c.length * 6.4) + 12;
+        el('rect', { x: px, y: y + 43, width: w, height: 16, rx: 8, 'class': 'chip' }, g);
+        txt(g, px + w / 2, y + 55, c, 'chip-text');
+        px += w + 5;
+      });
+    }
+    if (n.n) {
+      var bw = n.n.length > 1 ? 26 : 20;
+      el('rect', { x: x - 6, y: y - 9, width: bw, height: 18, rx: 9, 'class': 'badge' }, g);
+      txt(g, x - 6 + bw / 2, y + 4, n.n, 'badge-text');
+    }
+    if (n.warn) {
+      el('circle', { cx: r - 8, cy: y - 12, r: 8, 'class': 'warn' }, g);
+      txt(g, r - 8, y - 8, '!', 'warn-bang');
+      txt(g, r - 21, y - 8, n.warn, 'warn-text', 'end');
+    }
+  });
+
+  // links strip: IDs filled in by hand
+  var gStrip = el('g', {}, svg);
+  el('rect', { x: 0, y: STRIP_Y - 4, width: W, height: 60, rx: 0, 'class': 'strip-bg' }, gStrip);
+  txt(gStrip, 16, STRIP_Y + 12, 'LINKS BETWEEN SYSTEMS · IDs typed in by hand, often empty', 'strip-title', 'start');
+  var lx = 16, ly = STRIP_Y + 24, ph = 20;
+  links.forEach(function (lk) {
+    var fw = Math.round(lk.from.length * 6.7) + 16;
+    var tw = Math.round(lk.to.length * 6.7) + 16;
+    el('rect', { x: lx, y: ly, width: fw, height: ph, rx: 10, 'class': 'pill ghost' }, gStrip);
+    txt(gStrip, lx + fw / 2, ly + 14, lk.from, 'pill-text ghost');
+    var ax = lx + fw + 6;
+    el('path', { d: pathD([[ax, ly + ph / 2], [ax + 52, ly + ph / 2]]), 'class': 'e-manual', 'marker-end': 'url(#m-manual)' }, gStrip);
+    copyIcon(gStrip, ax + 24, ly + ph / 2);
+    var tx = ax + 58;
+    el('rect', { x: tx, y: ly, width: tw, height: ph, rx: 10, 'class': 'pill' }, gStrip);
+    txt(gStrip, tx + tw / 2, ly + 14, lk.to, 'pill-text');
+    lx = tx + tw + 40;
+  });
+})();
+</script>
+</body>
+</html>

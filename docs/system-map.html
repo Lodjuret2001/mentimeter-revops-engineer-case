@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>System and data ownership map</title>
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --fg: #1c1e24;
+    --muted: #7c818c;
+    --line: #d3d7df;
+    --card: #ffffff;
+    --card-line: #c4c9d4;
+    --chip: #e6e9ef;
+    --chip-fg: #3a3f4a;
+    --strip: #e6e9ef;
+    --auto: #2b6fe0;
+    --hand: #e2780a;
+    --empty: #98a0ac;
+    --reads: #a3a9b5;
+    --sf: #2b6fe0;
+    --admin: #1d9a57;
+    --kleer: #8a3fc0;
+    --stripe: #6358ff;
+    --slack: #d99a00;
+    --tint: 0.07;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1115;
+      --fg: #e6e8ec;
+      --muted: #8d93a0;
+      --line: #2c313c;
+      --card: #1b1f27;
+      --card-line: #3d4452;
+      --chip: #2f3543;
+      --chip-fg: #d6dae2;
+      --strip: #1b1f27;
+      --auto: #6fa3ff;
+      --hand: #ffa23a;
+      --empty: #7a8290;
+      --reads: #5c6472;
+      --sf: #6fa3ff;
+      --admin: #3fcf7a;
+      --kleer: #c58cf2;
+      --stripe: #9b94ff;
+      --slack: #ffc53d;
+      --tint: 0.10;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    padding: 20px 16px 32px;
+  }
+  header { max-width: 1528px; margin: 0 auto 10px; display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+  h1 { font-size: 18px; font-weight: 650; margin: 0; letter-spacing: -0.01em; }
+  h1 span { color: var(--muted); font-weight: 500; }
+  .scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .frame { width: 1528px; margin: 0 auto; }
+  svg.diagram { display: block; width: 1528px; height: auto; font-family: inherit; }
+  svg text { fill: var(--fg); }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .strip { fill: var(--strip); stroke: var(--line); }
+  .strip-title { font-size: 14px; font-weight: 650; }
+  .strip-sub { font-size: 12px; fill: var(--muted); }
+  .sys-box { fill-opacity: var(--tint); stroke-width: 1.5; }
+  .sys-title { font-size: 16px; font-weight: 700; }
+  .sys-role { font-size: 11.5px; fill: var(--muted); }
+  .card { fill: var(--card); stroke: var(--card-line); stroke-width: 1; }
+  .card-title { font-size: 14px; font-weight: 700; }
+  .card-sub { font-size: 11px; fill: var(--muted); font-weight: 400; }
+  .field { font-size: 12px; }
+  .f-hand { fill: var(--hand); font-weight: 600; }
+  .f-empty { fill: var(--empty); font-style: italic; }
+  .f-auto { fill: var(--auto); font-weight: 600; }
+  .f-int { fill: var(--muted); }
+  .note { font-size: 11px; fill: var(--muted); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  .chip { fill: var(--chip); }
+  .chip-text { font-size: 11px; font-weight: 600; fill: var(--chip-fg); }
+  .writes-label { font-size: 10.5px; fill: var(--muted); letter-spacing: 0.04em; }
+  .l-auto { stroke: var(--auto); stroke-width: 2; fill: none; }
+  .l-hand { stroke: var(--hand); stroke-width: 2; fill: none; stroke-dasharray: 7 5; }
+  .l-empty { stroke: var(--empty); stroke-width: 1.8; fill: none; stroke-dasharray: 2 4; }
+  .l-reads { stroke: var(--reads); stroke-width: 1.4; fill: none; }
+  .l-halo { stroke: var(--bg); stroke-width: 8; fill: none; }
+  .mk-auto { fill: var(--auto); }
+  .mk-hand { fill: var(--hand); }
+  .mk-empty { fill: var(--empty); }
+  .mk-reads { fill: var(--reads); }
+  .dot-auto { fill: var(--auto); }
+  .dot-hand { fill: var(--hand); }
+  .dot-empty { fill: var(--empty); }
+  .link-label { font-size: 11px; fill: var(--muted); }
+  .reads-label { font-size: 10.5px; fill: var(--muted); }
+  .legend-text { font-size: 11.5px; fill: var(--muted); }
+  .legend-card { fill: var(--card); stroke: var(--card-line); }
+</style>
+</head>
+<body>
+<header>
+  <h1>System and data ownership map <span>· who owns which record, how they link, who writes today</span></h1>
+</header>
+
+<div class="scroll"><div class="frame"><svg class="diagram" id="diagram" xmlns="http://www.w3.org/2000/svg"></svg></div></div>
+
+<script>
+(function () {
+  'use strict';
+  // ---------- layout constants ----------
+  var W = 1528;
+  var MARGIN = 16;
+  var STRIP_Y = 14, STRIP_H = 42;          // MentOS strip
+  var BOX_Y = 112;                          // top of the system boxes
+  var BOX_PAD = 10;                         // box padding around cards
+  var BOX_HEAD = 46;                        // box title + role
+  var CARD_PAD_X = 10, CARD_PAD_TOP = 6, CARD_PAD_BOTTOM = 8;
+  var TITLE_H = 18, LINE_H = 15, CARD_GAP = 8;
+  var MONO_CW = 7.25, NOTE_CW = 5.7;        // estimated px per char (12px mono, 11px sans)
+  var GAP = 64;                             // gap between system boxes
+
+  // ---------- data ----------
+  var systems = [
+    { id: 'kleer', name: 'Kleer', role: 'invoicing', w: 225, color: 'kleer', writers: ['Maja (by hand)'], cards: [
+      { id: 'kinv', title: 'Invoice / credit note', fields: ['invoiceNumber', 'lines', 'vatRate (Kleer decides)', 'poNumber', 'servicePeriod', 'status'],
+        links: [{ f: 'foreignId', style: 'empty', note: 'empty today' }] },
+      { id: 'kcust', title: 'Customer', fields: ['customerNumber', 'name', 'vatNumber', 'email', 'country', 'currency'] }
+    ] },
+    { id: 'sf', name: 'Salesforce', role: 'CRM · owns the deal and the customer', w: 320, color: 'sf', writers: ['Rep (AE/RM)'], cards: [
+      { id: 'acct', title: 'Account', sub: 'company', fields: ['Legal_Entity_Name__c', 'VAT_Number__c', 'Invoice_Email__c', 'PO_Required__c', 'CurrencyIsoCode', 'BillingCountry', 'OwnerId', 'CSM__c'],
+        links: [{ f: 'Workspace_ID__c', style: 'hand', note: 'by hand, often empty' }, { f: 'Kleer_Customer_Number__c', style: 'hand', note: 'by hand' }] },
+      { id: 'contact', title: 'Contact', sub: 'person', fields: ['Name', 'Email', { t: 'AccountId → Account', style: 'int' }] },
+      { id: 'opp', title: 'Opportunity', sub: 'the deal', fields: ['RecordType New/Add_on/Renewal', 'StageName', 'Plan__c', 'Number_of_Licenses__c', 'Price_per_License_per_Year__c', 'Discount__c', 'Discount_Approval__c', 'Start/End_Date__c', 'Payment_Method__c', 'PO_Number__c',
+          { t: 'AccountId → Account', style: 'int' }, { t: 'Billing_Contact__c → Contact', style: 'int' }, { t: 'Original_Opportunity__c → Opportunity', style: 'int' }],
+        links: [{ f: 'Subscription_ID__c', style: 'empty', note: 'empty today' }, { f: 'Invoice_Number__c', style: 'empty', note: 'empty today' }] },
+      { id: 'li', title: 'Line items', fields: ['ProductCode', 'Quantity', 'UnitPrice', 'Discount'] },
+      { id: 'prod', title: 'Products + Pricebook', fields: ['PRO / ENT / ONB', { t: 'list price per currency → Opportunity', style: 'int' }] },
+      { row: [
+        { id: 'events', title: 'Events', w: 192, fields: ['closed_won', 'updated', 'reopened', 'replayId'] },
+        { id: 'users', title: 'Users', w: 100, fields: ['Role'], links: [{ f: 'Email', style: 'auto', note: '= Slack email' }] }
+      ] }
+    ] },
+    { id: 'admin', name: 'Admin app', role: 'product back office', w: 240, color: 'admin', writers: ['Maja (by hand)', 'Self-service (auto)'], cards: [
+      { id: 'sub', title: 'Subscription', sub: 'the entitlement', fields: ['plan PRO/ENT', 'seats', 'startDate', 'endDate', 'status', 'autoRenew', 'billingSystem'],
+        links: [{ f: 'salesforceAccountId', style: 'hand', note: 'by hand' }, { f: 'billingReference', style: 'hand', note: 'Kleer invoice no. or Stripe sub id' }] },
+      { id: 'ws', title: 'Workspace', sub: 'in the product', fields: ['id', 'name', 'domain', 'region EU/US', 'plan Free/Pro/Enterprise', 'activeMembers'],
+        links: [{ f: 'salesforceAccountId', style: 'hand', note: 'null for self-service' }] }
+    ] },
+    { id: 'stripe', name: 'Stripe', role: 'card payments', w: 240, color: 'stripe', writers: ['Maja (by hand)', 'Self-service (auto)'], cards: [
+      { id: 'ssub', title: 'Subscription', fields: ['id', 'plan', 'quantity', 'amount', 'period', 'status', 'latest_invoice_status'] },
+      { id: 'scust', title: 'Customer', fields: ['id', 'email', 'currency', 'card (brand, last4, expiry)'],
+        links: [{ f: 'metadata.workspace_id', style: 'auto', note: 'set by self-service' }] }
+    ] },
+    { id: 'slack', name: 'Slack', role: 'chat', w: 215, color: 'slack', writers: ['Salesforce bot', 'Everyone'], cards: [
+      { id: 'slusers', title: 'Users', fields: [{ t: 'email', style: 'auto' }, { t: '= Salesforce user email', style: 'int' }] },
+      { id: 'msgs', title: 'Messages', fields: ['free text, no structure'] },
+      { id: 'slch', title: 'Channels', fields: [{ t: '#closed-won', style: 'auto' }, '#deal-desk', '#finance-billing', '#revops-help'] }
+    ] }
+  ];
+
+  // x positions, left to right
+  var x = MARGIN;
+  systems.forEach(function (s) { s.x = x; x += s.w + GAP; });
+
+  // ---------- svg helpers ----------
+  var NS = 'http://www.w3.org/2000/svg';
+  function el(tag, attrs, parent) {
+    var e = document.createElementNS(NS, tag);
+    for (var k in attrs) { if (attrs.hasOwnProperty(k)) e.setAttribute(k, attrs[k]); }
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function txt(parent, x, y, s, cls, anchor) {
+    var t = el('text', { x: x, y: y, 'class': cls || '', 'text-anchor': anchor || 'start' }, parent);
+    t.textContent = s;
+    return t;
+  }
+  function tspan(parent, s, cls) {
+    var t = el('tspan', { 'class': cls || '' }, parent);
+    t.textContent = s;
+    return t;
+  }
+  function pathD(pts) {
+    var d = '';
+    for (var i = 0; i < pts.length; i++) d += (i ? ' L' : 'M') + pts[i][0] + ' ' + pts[i][1];
+    return d;
+  }
+
+  // greedy wrap of field tokens into lines of at most `cap` characters
+  function wrapFields(fields, cap) {
+    var lines = [], cur = [], len = 0;
+    fields.forEach(function (f) {
+      var tok = typeof f === 'string' ? { t: f } : f;
+      var l = tok.t.length + 2;
+      if (cur.length && len + l > cap) { lines.push(cur); cur = []; len = 0; }
+      cur.push(tok); len += l;
+    });
+    if (cur.length) lines.push(cur);
+    return lines;
+  }
+
+  // measure a card: returns the laid-out lines and height
+  function measureCard(card, w) {
+    var inner = w - 2 * CARD_PAD_X;
+    var cap = Math.floor(inner / MONO_CW);
+    var lines = wrapFields(card.fields || [], cap).map(function (toks) { return { kind: 'fields', toks: toks }; });
+    (card.links || []).forEach(function (lk) {
+      var wide = lk.f.length * MONO_CW + 10 + (lk.note ? lk.note.length * NOTE_CW : 0);
+      if (lk.note && wide > inner) {
+        lines.push({ kind: 'link', lk: lk, noteOnOwnLine: true });
+        lines.push({ kind: 'note', lk: lk });
+      } else {
+        lines.push({ kind: 'link', lk: lk });
+      }
+    });
+    var h = CARD_PAD_TOP + TITLE_H + lines.length * LINE_H + CARD_PAD_BOTTOM;
+    return { lines: lines, h: h };
+  }
+
+  // ---------- compute layout ----------
+  var cards = {};   // id -> {x1,y1,x2,y2,titleY,rows:{field:y}}
+  var contentH = 0;
+  systems.forEach(function (s) {
+    var y = BOX_Y + BOX_HEAD;
+    var cx0 = s.x + BOX_PAD;
+    var cw = s.w - 2 * BOX_PAD;
+    s.layout = [];
+    s.cards.forEach(function (c) {
+      var rowCards = c.row ? c.row : [c];
+      var rx = cx0, rowH = 0, placed = [];
+      rowCards.forEach(function (rc) {
+        var w = c.row ? rc.w : cw;
+        var m = measureCard(rc, w);
+        placed.push({ card: rc, x: rx, y: y, w: w, h: m.h, lines: m.lines });
+        rowH = Math.max(rowH, m.h);
+        rx += w + 8;
+      });
+      placed.forEach(function (p) { p.h = rowH; s.layout.push(p); });
+      y += rowH + CARD_GAP;
+    });
+    contentH = Math.max(contentH, y - CARD_GAP - BOX_Y);
+  });
+  var BOX_H = contentH + BOX_PAD + 2;
+  var BOX_BOTTOM = BOX_Y + BOX_H;
+  var CHIP_Y = BOX_BOTTOM + 16;             // actor chips (who writes)
+  var BAND1 = BOX_BOTTOM + 62;              // routing band below the chips
+  var BAND2 = BAND1 + 18;
+  var LEGEND_Y = BAND2 + 36;
+  var H = LEGEND_Y + 30;
+
+  // ---------- build ----------
+  var svg = document.getElementById('diagram');
+  svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+  svg.setAttribute('width', W);
+  svg.setAttribute('height', H);
+  var defs = el('defs', {}, svg);
+  ['auto', 'hand', 'empty', 'reads'].forEach(function (k) {
+    var m = el('marker', { id: 'm-' + k, viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' }, defs);
+    el('path', { d: 'M0 0 L10 5 L0 10 z', 'class': 'mk-' + k }, m);
+  });
+
+  var gBoxes = el('g', {}, svg);
+  var gLinks = el('g', {}, svg);
+  var gTop = el('g', {}, svg);
+
+  // MentOS strip
+  el('rect', { x: MARGIN, y: STRIP_Y, width: W - 2 * MARGIN, height: STRIP_H, rx: 8, 'class': 'strip' }, gTop);
+  var st = txt(gTop, MARGIN + 16, STRIP_Y + 26, '', 'strip-title');
+  tspan(st, 'MentOS');
+  tspan(st, '  internal tool, this app  ·  reads from all five systems, writes nothing today', 'strip-sub');
+
+  // system boxes, cards, writers
+  systems.forEach(function (s) {
+    var g = el('g', {}, gBoxes);
+    el('rect', { x: s.x, y: BOX_Y, width: s.w, height: BOX_H, rx: 10, 'class': 'sys-box', fill: 'var(--' + s.color + ')', stroke: 'var(--' + s.color + ')' }, g);
+    txt(g, s.x + 12, BOX_Y + 22, s.name, 'sys-title').setAttribute('fill', 'var(--' + s.color + ')');
+    txt(g, s.x + 12, BOX_Y + 37, s.role, 'sys-role');
+
+    // "reads" arrow from MentOS
+    var rx = s.x + 30;
+    el('path', { d: pathD([[rx, STRIP_Y + STRIP_H], [rx, BOX_Y]]), 'class': 'l-reads', 'marker-end': 'url(#m-reads)' }, gTop);
+    txt(gTop, rx + 7, STRIP_Y + STRIP_H + 18, 'reads', 'reads-label');
+
+    s.layout.forEach(function (p) {
+      var c = p.card;
+      var rec = { x1: p.x, y1: p.y, x2: p.x + p.w, y2: p.y + p.h, titleY: p.y + CARD_PAD_TOP + 10, rows: {} };
+      cards[c.id] = rec;
+      var cg = el('g', {}, g);
+      el('rect', { x: p.x, y: p.y, width: p.w, height: p.h, rx: 6, 'class': 'card' }, cg);
+      var t = txt(cg, p.x + CARD_PAD_X, p.y + CARD_PAD_TOP + 13, '', 'card-title');
+      tspan(t, c.title);
+      if (c.sub) tspan(t, '  ' + c.sub, 'card-sub');
+      var ly = p.y + CARD_PAD_TOP + TITLE_H + 11;
+      p.lines.forEach(function (ln) {
+        if (ln.kind === 'fields') {
+          var te = txt(cg, p.x + CARD_PAD_X, ly, '', 'field mono');
+          ln.toks.forEach(function (tok, i) {
+            tspan(te, (i ? ', ' : '') + tok.t, tok.style ? 'f-' + tok.style : '');
+            if (tok.style) rec.rows[tok.t] = ly - 4;
+          });
+        } else if (ln.kind === 'link') {
+          var tl = txt(cg, p.x + CARD_PAD_X, ly, '', 'field mono');
+          tspan(tl, ln.lk.f, 'f-' + ln.lk.style);
+          if (ln.lk.note && !ln.noteOnOwnLine) tspan(tl, '  ' + ln.lk.note, 'note');
+          rec.rows[ln.lk.f] = ly - 4;
+        } else if (ln.kind === 'note') {
+          txt(cg, p.x + CARD_PAD_X + 12, ly, ln.lk.note, 'note');
+        }
+        ly += LINE_H;
+      });
+    });
+
+    // who writes today: chips below the box with a short arrow up into it
+    var chipX = s.id === 'sf' ? null : s.x + 8;
+    var chips = s.writers.map(function (w) { return { t: w, w: Math.round(w.length * 6.3) + 14 }; });
+    if (chipX === null) { // centre the single Salesforce chip
+      chipX = s.x + s.w / 2 - chips[0].w / 2;
+    }
+    chips.forEach(function (ch) {
+      var cxm = chipX + ch.w / 2;
+      el('path', { d: pathD([[cxm, CHIP_Y], [cxm, BOX_BOTTOM + 1]]), 'class': 'l-reads', 'marker-end': 'url(#m-reads)' }, g);
+      el('rect', { x: chipX, y: CHIP_Y, width: ch.w, height: 22, rx: 11, 'class': 'chip' }, g);
+      txt(g, cxm, CHIP_Y + 15, ch.t, 'chip-text', 'middle');
+      chipX += ch.w + 6;
+    });
+  });
+  txt(gTop, MARGIN, CHIP_Y + 15 + 24, 'WHO WRITES INTO EACH SYSTEM TODAY ↑', 'writes-label');
+
+  // ---------- links ----------
+  function sys(cardId) { for (var i = 0; i < systems.length; i++) { if (systems[i].layout.some(function (p) { return p.card.id === cardId; })) return systems[i]; } }
+  // S-curve between a row on one card and the title row of another card, through the gap between the two systems
+  function sideLink(fromId, field, toId, style, toDy) {
+    var a = cards[fromId], b = cards[toId];
+    var goRight = sys(toId).x > sys(fromId).x;
+    var x1 = goRight ? a.x2 : a.x1, y1 = a.rows[field];
+    var x2 = goRight ? b.x1 : b.x2, y2 = b.titleY + (toDy || 0);
+    var d = Math.abs(x2 - x1) / 2;
+    var c1 = goRight ? x1 + d : x1 - d, c2 = goRight ? x2 - d : x2 + d;
+    el('path', { d: 'M' + x1 + ' ' + y1 + ' C' + c1 + ' ' + y1 + ' ' + c2 + ' ' + y2 + ' ' + x2 + ' ' + y2, 'class': 'l-' + style, 'marker-end': 'url(#m-' + style + ')' }, gLinks);
+    el('circle', { cx: x1, cy: y1, r: 3, 'class': 'dot-' + style }, gLinks);
+  }
+  function polyLink(pts, style, halo) {
+    if (halo) el('path', { d: pathD(pts), 'class': 'l-halo' }, gLinks);
+    el('path', { d: pathD(pts), 'class': 'l-' + style, 'marker-end': 'url(#m-' + style + ')' }, gLinks);
+    el('circle', { cx: pts[0][0], cy: pts[0][1], r: 3, 'class': 'dot-' + style }, gLinks);
+  }
+
+  // Salesforce <-> Admin app (adjacent)
+  sideLink('acct', 'Workspace_ID__c', 'ws', 'hand');
+  sideLink('sub', 'salesforceAccountId', 'acct', 'hand', 0);
+  sideLink('ws', 'salesforceAccountId', 'acct', 'hand', 14);
+  sideLink('opp', 'Subscription_ID__c', 'sub', 'empty');
+  // Salesforce <-> Kleer (adjacent)
+  sideLink('acct', 'Kleer_Customer_Number__c', 'kcust', 'hand');
+  sideLink('kinv', 'foreignId', 'opp', 'empty');
+  sideLink('opp', 'Invoice_Number__c', 'kinv', 'empty');
+  // Admin app <-> Stripe (adjacent)
+  sideLink('sub', 'billingReference', 'ssub', 'hand');
+  sideLink('scust', 'metadata.workspace_id', 'ws', 'auto');
+
+  // Admin Subscription.billingReference -> Kleer invoice: routed above the boxes (hops over the Salesforce "reads" arrow)
+  var TOP_Y = STRIP_Y + STRIP_H + 30;
+  var subRec = cards.sub, kinvRec = cards.kinv;
+  var ax = subRec.x2 - 40, kx = kinvRec.x1 + 80;   // verticals sit clear of the box titles
+  polyLink([[ax, subRec.y1], [ax, TOP_Y], [kx, TOP_Y], [kx, kinvRec.y1]], 'hand', true);
+  // label over the Salesforce box, between the Salesforce and Admin app "reads" labels
+  txt(gLinks, systems[1].x + systems[1].w / 2 + 60, TOP_Y - 6, 'billingReference · by hand, if paid by invoice', 'link-label', 'middle');
+
+  // Salesforce Users.Email = Slack Users.email: below the chips, enters Slack from the left
+  var u = cards.users, su = cards.slusers;
+  var ux = u.x1 + u.x2 > 0 ? (u.x1 + u.x2) / 2 : 0;
+  var slackGapX = systems[4].x - 22;
+  polyLink([[ux, u.y2], [ux, BAND1], [slackGapX, BAND1], [slackGapX, su.titleY], [su.x1, su.titleY]], 'auto');
+  txt(gLinks, (ux + slackGapX) / 2, BAND1 - 6, 'Users.Email = Slack email · same work email', 'link-label', 'middle');
+
+  // Salesforce Events -> Slack #closed-won: below the chips, enters the Channels card from below
+  var ev = cards.events, ch = cards.slch;
+  var ex = ev.x1 + 30, chx = ch.x2 - 14;
+  polyLink([[ex, ev.y2], [ex, BAND2], [chx, BAND2], [chx, ch.y2]], 'auto');
+  txt(gLinks, (ex + chx) / 2 + 60, BAND2 + 14, 'Events closed_won → #closed-won · bot posts every win', 'link-label', 'middle');
+
+  // ---------- legend (bottom right) ----------
+  var lg = el('g', {}, gTop);
+  var items = [
+    { style: 'auto', text: 'automatic, reliable' },
+    { style: 'hand', text: 'filled in by hand, often empty' },
+    { style: 'empty', text: 'field exists, empty today' }
+  ];
+  var lx = W - MARGIN;
+  // owner-of-record item first (rightmost)
+  var ownerText = 'record card = this system owns the record (source of truth)';
+  lx -= Math.round(ownerText.length * 5.9);
+  txt(lg, lx, LEGEND_Y + 4, ownerText, 'legend-text');
+  el('rect', { x: lx - 30, y: LEGEND_Y - 7, width: 22, height: 14, rx: 3, 'class': 'legend-card' }, lg);
+  lx -= 30 + 28;
+  items.reverse().forEach(function (it) {
+    lx -= Math.round(it.text.length * 5.9);
+    txt(lg, lx, LEGEND_Y + 4, it.text, 'legend-text');
+    el('path', { d: pathD([[lx - 40, LEGEND_Y], [lx - 8, LEGEND_Y]]), 'class': 'l-' + it.style, 'marker-end': 'url(#m-' + it.style + ')' }, lg);
+    lx -= 40 + 28;
+  });
+})();
+</script>
+</body>
+</html>
