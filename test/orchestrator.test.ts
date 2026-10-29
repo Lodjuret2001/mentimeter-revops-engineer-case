@@ -208,11 +208,13 @@ describe('the week, end to end', () => {
     ).toBe(true);
     expect(
       to('U04LEAFSCH').some((t) => t.includes('Kessler') && t.includes('Billing is on hold')),
-    expect(to('U04KIMANDS').some((t) => t.includes('Brightwell') && t.includes('No CSM'))).toBe(true);
+    ).toBe(true);
+    expect(to('U04KIMANDS').some((t) => t.includes('Brightwell') && t.includes('No CSM'))).toBe(
+      true,
+    );
     expect(to('U04KIMANDS').some((t) => t.includes('Helix') && t.includes('workspaces'))).toBe(
       true,
     );
-    ).toBe(true)
   });
 
   it('picks up fixes in Salesforce on the next run', async () => {
