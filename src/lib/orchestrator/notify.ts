@@ -50,6 +50,11 @@ export async function notify(
   const dealUrl = `http://localhost:3000/deals/${o.Id}`;
   const header = `*${o.Name}*  ·  ${ctx.account.Name}`;
   const footer = `<${caseUrl}|Open in Menti Orchestrator>  ·  <${dealUrl}|Open in Salesforce>`;
+  const billingFooter = record.executed.invoiceNumber
+    ? `<http://localhost:3000/kleer#${record.executed.invoiceNumber}|Open invoice ${record.executed.invoiceNumber} in Kleer>  ·  <${caseUrl}|Open in Menti Orchestrator>`
+    : record.executed.stripeSubscriptionId
+      ? `<http://localhost:3000/stripe#${record.executed.stripeSubscriptionId}|Open in Stripe>  ·  <${caseUrl}|Open in Menti Orchestrator>`
+      : footer;
   const forRep = record.findings.filter(
     (f) => f.owner === 'rep' && (f.severity === 'hold' || f.severity === 'block'),
   );
@@ -104,7 +109,7 @@ export async function notify(
     await post(
       o.Id,
       FINANCE,
-      `${header}\nStatus: ${statusLine[record.status]}.\n\n${financeLines.join('\n')}\n\n${footer}`,
+      `${header}\nStatus: ${statusLine[record.status]}.\n\n${financeLines.join('\n')}\n\n${billingFooter}`,
     );
   }
 
@@ -137,7 +142,7 @@ export async function notify(
 
   if (stripePastDue) {
     const credit = users.find((u) => /credit/i.test(u.Title));
-    const text = `${header}\nCard payment failed for ${record.executed.stripeSubscriptionId}.\n•  ${record.findings.find((f) => f.rule === 'CC')?.message ?? ''}\n\n${footer}`;
+    const text = `${header}\nCard payment failed for ${record.executed.stripeSubscriptionId}.\n•  ${record.findings.find((f) => f.rule === 'CC')?.message ?? ''}\n\n${billingFooter}`;
     if (credit) await dmByEmail(o.Id, credit.Email, text);
     else await post(o.Id, FINANCE, text);
   }

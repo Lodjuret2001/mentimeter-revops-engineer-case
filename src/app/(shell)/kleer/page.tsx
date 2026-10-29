@@ -146,6 +146,7 @@ export default async function KleerPage(props: PageProps<'/kleer'>) {
                 {[...invoices].reverse().map((i) => (
                   <TableRow
                     key={i.invoiceNumber}
+                    id={i.invoiceNumber}
                     className="hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20"
                   >
                     <TableCell className="py-3 pl-4 align-top">

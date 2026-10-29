@@ -123,6 +123,7 @@ export default async function StripePage(props: PageProps<'/stripe'>) {
                       return (
                         <tr
                           key={s.id}
+                          id={s.id}
                           className="border-[#e3e8ee] border-b align-top last:border-b-0 hover:bg-[#f6f8fa] dark:border-border dark:hover:bg-muted/40"
                         >
                           <td className="py-3 pr-4">
