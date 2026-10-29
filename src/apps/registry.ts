@@ -10,7 +10,7 @@ import {
   Home,
   LayoutGrid,
   MessageSquare,
-  Sparkles,
+  Workflow,
   Wrench,
 } from 'lucide-react';
 import type { ComponentType } from 'react';
@@ -32,7 +32,7 @@ export const APP_SECTIONS: AppSection[] = [
     label: 'MentOS',
     apps: [
       { id: 'home', label: 'Home', href: '/', icon: Home },
-      { id: 'your-app', label: 'Your app', href: '/your-app', icon: Sparkles },
+      { id: 'orchestrator', label: 'Menti Orchestrator', href: '/orchestrator', icon: Workflow },
     ],
   },
   {

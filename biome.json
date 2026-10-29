@@ -14,7 +14,8 @@
       "!.data",
       "!data/seed",
       "!src/components/ui",
-      "!next-env.d.ts"
+      "!next-env.d.ts",
+      "!docs/**/*.html"
     ]
   },
   "formatter": {

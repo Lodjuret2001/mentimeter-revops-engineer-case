@@ -1,4 +1,4 @@
-import { ArrowRight, BookOpen, Sparkles, Wrench } from 'lucide-react';
+import { ArrowRight, BookOpen, Workflow, Wrench } from 'lucide-react';
 import Link from 'next/link';
 import { DealsTable } from '@/components/data/deals-table';
 import { Page, PageHeader, Section } from '@/components/shell/page';
@@ -60,10 +60,10 @@ export default async function HomePage() {
           <CardContent className="grid gap-2 sm:grid-cols-3">
             {[
               {
-                href: '/your-app',
-                icon: Sparkles,
-                label: 'Your app',
-                hint: 'An empty page to start from',
+                href: '/orchestrator',
+                icon: Workflow,
+                label: 'Menti Orchestrator',
+                hint: 'Closed Won hand-off, automated',
               },
               {
                 href: '/deals',
