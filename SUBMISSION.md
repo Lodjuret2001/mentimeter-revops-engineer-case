@@ -17,8 +17,15 @@ happened. Lea gets a DM the moment a workspace exists, so her kickoff has
 somewhere to happen.
 
 The orchestrator is its own API at `/api/orchestrator/*` (Hono, same pattern
-as the mocks) with a UI at `/orchestrator`. The systems are left exactly as
-they are; everything new lives in `src/lib/orchestrator`.
+as the mocks) with a UI at `/orchestrator`: a case list with search and
+filters, and a case page that shows the decision (status in one sentence,
+next step and who owns it, by name) followed by the run as steps. The systems
+are left as they are; everything new lives in `src/lib/orchestrator`.
+
+To make the loop testable inside MentOS, deals and accounts in the Salesforce
+pages got an Edit section where every field can be changed, and open deals a
+"Mark Closed Won" button. Saving writes to Salesforce and re-runs the
+orchestrator, which is what a real `opportunity.updated` event would do.
 
 How a Closed Won event is handled, in order:
 
@@ -36,8 +43,10 @@ How a Closed Won event is handled, in order:
 7. Write back to Salesforce: `Subscription_ID__c`, `Invoice_Number__c`,
    `Billing_Reference__c`, `Handoff_Status__c`, `Handoff_Issues__c`, and the
    account's `Workspace_ID__c` and `Kleer_Customer_Number__c`.
-8. Slack, only when something changed since last time: deal owner, CSM,
-   `#finance-billing`, `#deal-desk`, credit controller.
+8. Slack, only when something changed since last time: deal owner (DM), CSM
+   (DM), finance (`#finance-billing`, with the invoice link into Kleer),
+   Deal Desk (`#deal-desk`), credit controller (DM), RevOps (DM, for a
+   missing CSM, two candidate workspaces or a failed action).
 9. Save the case and the log.
 
 On this week's data that gives 9 deals done, 6 set up with billing held, 2
@@ -126,22 +135,25 @@ config change is excluding the two HTML diagrams in `docs/` from Biome.
 
 `npm install`, `npm run dev`, open http://localhost:3000.
 
-1. **Menti Orchestrator** in the sidebar, press **Sync Salesforce events**.
-   Or go to **Dev tools** and press **Send all 21 to webhook**; the webhook
-   hands each event to the orchestrator.
-2. Open **Nordlys Energi** for a clean plan move (old card subscription
-   stopped, Kleer draft with 25% VAT), **Halden & Co** for the prorated
-   add-on, **Kessler Logistik** for a hold on a missing PO, **Helix Pharma**
-   for the workspace choice buttons.
-3. Fix something in Salesforce and run again, for example:
+1. **Home** explains the orchestrator. Press **Sync Salesforce events** there
+   or on the Menti Orchestrator page. Or go to **Dev tools** and press
+   **Send all 21 to webhook**; the webhook hands each event to the
+   orchestrator.
+2. **Menti Orchestrator**, press **Needs action**. Open **Kessler Logistik**
+   (hold on a missing PO), **Helix Pharma** (two candidate workspaces, pick
+   one with a button), **Nordlys Energi** (plan move, old card subscription
+   stopped, Kleer draft with 25% VAT), **Halden & Co** (prorated add-on).
+3. Run the loop yourself: **Deals, Open**, pick Orbital Freight, press
+   **Mark Closed Won**. It lands on its case as held, Jordan gets a DM about
+   the PO number. Press **Open in Salesforce**, fill in a PO number under
+   **Edit**, save. The case is done, the draft is in Kleer and Maja has the
+   link in `#finance-billing`. The same works from the API:
 
    ```bash
    curl -X PATCH localhost:3000/api/mock/salesforce/opportunities/006Wb0000000lqRAAK \
      -H 'content-type: application/json' -d '{"PO_Number__c":"PO-KL-5001"}'
    curl -X POST localhost:3000/api/orchestrator/cases/006Wb0000000lqRAAK/run
    ```
-
-   Kessler goes from held to done and Maja gets the draft.
 4. **Slack** shows every DM and channel message; **Deals** shows the
    write-back on each opportunity; **Kleer**, **Stripe** and **Admin app**
    show what was created. **Dev tools, Request log** shows every call.
@@ -191,6 +203,15 @@ why:
   subscription" on Nordlys, it double-counted Halden's added seats on the
   second event, and it DM'd Sam about Polar Bear, a deal Sam reopened
   himself.
+- When no CSM was on an account it only wrote a warning in its own log and
+  told nobody. Now that is a finding owned by RevOps and Kim gets the DM,
+  because assigning a CSM is a Salesforce data fix.
+- It reset the demo database while I was clicking through the app, which
+  lost the case I had just created. Lesson applied: the orchestrator now
+  rebuilds its state from the systems, and the tool asks before resetting.
+- I asked it for three different case page layouts (steps, systems board,
+  checklist) and kept the steps view with the checklist's decision card on
+  top. The other two were thrown away.
 - It wanted to import the EU country list from the Kleer mock. The mock is
   third-party code, so the orchestrator has its own list.
 
@@ -199,8 +220,10 @@ Roughly where you spent your time:
 - About 1 hour 15 minutes understanding the business, the roles, the data and
   the current flow, and getting the diagrams made.
 - About 45 minutes deciding what to build and watching it get built.
-- About 45 minutes running it on the week's data, reading the output deal by
-  deal, and fixing what was wrong.
+- About 1 hour running it on the week's data, clicking through the flow,
+  reading the output deal by deal, and fixing or tightening what was wrong
+  (names instead of IDs, who gets which Slack message, editing fields,
+  filters, the case page layout).
 - About 15 minutes on this document.
 
 ## Video

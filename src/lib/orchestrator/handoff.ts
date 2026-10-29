@@ -93,7 +93,7 @@ export async function processOpportunity(
     });
   }
 
-  record.notifiedHash = await notify(ctx, record, previous, result.stripePastDue);
+  record.notifiedHash = await notify(ctx, record, ctx.existing, result.stripePastDue);
   saveCase(record);
   log(opportunityId, 'info', 'end', `${status}: ${record.history.at(-1)?.summary}`);
   return record;
