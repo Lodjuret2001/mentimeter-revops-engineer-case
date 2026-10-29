@@ -19,10 +19,10 @@ const statusLine: Record<CaseStatus, string> = {
   reopened: 'left Closed Won',
 };
 
-async function post(opportunityId: string, channel: string, text: string) {
+async function post(opportunityId: string, channel: string, text: string, label = channel) {
   try {
     await slack.postMessage({ channel, text });
-    log(opportunityId, 'info', 'notify', `Slack to ${channel}`, { system: 'slack', detail: text });
+    log(opportunityId, 'info', 'notify', `Slack to ${label}`, { system: 'slack', detail: text });
   } catch (error) {
     log(opportunityId, 'warn', 'notify', `Slack to ${channel} failed: ${String(error)}`, {
       system: 'slack',
@@ -33,7 +33,7 @@ async function post(opportunityId: string, channel: string, text: string) {
 async function dmByEmail(opportunityId: string, email: string, text: string) {
   try {
     const user = await slack.lookupUserByEmail(email);
-    await post(opportunityId, user.id, text);
+    await post(opportunityId, user.id, text, `${user.real_name} (DM)`);
   } catch {
     log(opportunityId, 'warn', 'notify', `No Slack user for ${email}`, { system: 'slack' });
   }

@@ -5,7 +5,7 @@ import { formatDateTime } from '@/lib/format';
 import type { Action, Finding, HandoffCase, LogEntry, Severity, Stage } from '@/lib/orchestrator';
 import { cn } from '@/lib/utils';
 import { CaseStatusBadge, Chip, LevelBadge, OWNER_LABEL, SeverityBadge } from '../../parts';
-import { DecisionCard } from './checklist';
+import { DecisionCard } from './decision';
 
 type Tone = 'good' | 'warn' | 'bad' | 'idle';
 

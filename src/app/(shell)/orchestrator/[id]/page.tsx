@@ -6,15 +6,7 @@ import { Button } from '@/components/ui/button';
 import { getCase, queryLog } from '@/lib/orchestrator';
 import { chooseWorkspaceAction, runAction, sendInvoiceAction } from '../actions';
 import { CaseStatusBadge } from '../parts';
-import { ChecklistView } from './views/checklist';
 import { StepsView } from './views/steps';
-import { SystemsView } from './views/systems';
-
-const VIEWS = [
-  ['steps', 'Steps'],
-  ['systems', 'Systems'],
-  ['checklist', 'Checklist'],
-] as const;
 
 export async function generateMetadata(props: PageProps<'/orchestrator/[id]'>): Promise<Metadata> {
   const { id } = await props.params;
@@ -24,8 +16,6 @@ export async function generateMetadata(props: PageProps<'/orchestrator/[id]'>): 
 
 export default async function OrchestratorCasePage(props: PageProps<'/orchestrator/[id]'>) {
   const { id } = await props.params;
-  const { view } = await props.searchParams;
-  const active = VIEWS.some(([key]) => key === view) ? String(view) : 'steps';
   const record = getCase(id);
   if (!record) notFound();
   const entries = queryLog({ opportunityId: id, limit: 500 });
@@ -93,29 +83,7 @@ export default async function OrchestratorCasePage(props: PageProps<'/orchestrat
         }
       />
 
-      <nav className="flex gap-1 rounded-lg border bg-muted/40 p-1 text-sm w-fit">
-        {VIEWS.map(([key, label]) => (
-          <Link
-            key={key}
-            href={
-              key === 'steps'
-                ? `/orchestrator/${record.opportunityId}`
-                : `/orchestrator/${record.opportunityId}?view=${key}`
-            }
-            className={
-              active === key
-                ? 'rounded-md bg-background px-3 py-1 font-medium shadow-sm'
-                : 'rounded-md px-3 py-1 text-muted-foreground hover:text-foreground'
-            }
-          >
-            {label}
-          </Link>
-        ))}
-      </nav>
-
-      {active === 'steps' ? <StepsView record={record} entries={entries} /> : null}
-      {active === 'systems' ? <SystemsView record={record} entries={entries} /> : null}
-      {active === 'checklist' ? <ChecklistView record={record} entries={entries} /> : null}
+      <StepsView record={record} entries={entries} />
     </Page>
   );
 }
