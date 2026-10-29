@@ -218,7 +218,7 @@ export default async function HomePage() {
                     {formatDateTime(m.postedAt)}
                   </div>
                   <p className="line-clamp-3 whitespace-pre-line">
-                    {slackText(m.text, slackUsers)}
+                    <SlackMessageText text={m.text} users={slackUsers} />
                   </p>
                 </div>
               ))}
