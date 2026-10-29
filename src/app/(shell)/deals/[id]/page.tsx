@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { closeWonAction } from '@/app/(shell)/orchestrator/actions';
 import { Status } from '@/components/data/status';
 import {
   FieldGrid,
@@ -15,6 +16,7 @@ import {
 import { SalesPath } from '@/components/salesforce/sales-path';
 import { EmptyState } from '@/components/shell/page';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -104,6 +106,21 @@ export default async function DealPage(props: PageProps<'/deals/[id]'>) {
           <>
             <Badge variant="outline">{opportunity.RecordType.Name}</Badge>
             <Status value={opportunity.StageName} />
+            {opportunity.StageName === 'Closed Won' ? (
+              <Link
+                href={`/orchestrator/${opportunity.Id}`}
+                className="rounded border px-3 py-1.5 text-sm hover:bg-muted"
+              >
+                Hand-off
+              </Link>
+            ) : (
+              <form action={closeWonAction}>
+                <input type="hidden" name="opportunityId" value={opportunity.Id} />
+                <Button size="sm" type="submit">
+                  Mark Closed Won
+                </Button>
+              </form>
+            )}
           </>
         }
         highlights={[

@@ -1,6 +1,9 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
+import { today } from '@/lib/clock';
+import { salesforce } from '@/lib/connectors';
 import {
   chooseWorkspace,
   orchestratorApp,
@@ -45,4 +48,13 @@ export async function chooseWorkspaceAction(formData: FormData) {
   const workspaceId = text(formData, 'workspaceId');
   if (id && workspaceId) await chooseWorkspace(id, workspaceId);
   revalidatePath('/', 'layout');
+}
+
+export async function closeWonAction(formData: FormData) {
+  const id = text(formData, 'opportunityId');
+  if (!id) return;
+  await salesforce.updateOpportunity(id, { StageName: 'Closed Won', CloseDate: today() });
+  await processOpportunity(id, { trigger: 'marked Closed Won in MentOS' });
+  revalidatePath('/', 'layout');
+  redirect(`/orchestrator/${id}`);
 }
