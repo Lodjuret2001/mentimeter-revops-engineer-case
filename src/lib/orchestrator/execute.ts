@@ -60,17 +60,20 @@ export async function execute(
         }
         case 'create_subscription': {
           if (!workspaceId) throw new Error('No workspace to create the subscription on');
-          const s = await adminApp.createSubscription({
-            workspaceId,
-            salesforceAccountId: a.Id,
-            plan: str(p.plan) as string,
-            seats: num(p.seats) as number,
-            startDate: str(p.startDate) as string,
-            endDate: str(p.endDate) as string,
-            billingSystem: p.billingSystem === 'Stripe' ? 'Stripe' : 'Kleer',
-            status: p.status === 'Scheduled' ? 'Scheduled' : 'Active',
-            autoRenew: p.autoRenew === true,
-          });
+          const s = await adminApp.createSubscription(
+            {
+              workspaceId,
+              salesforceAccountId: a.Id,
+              plan: str(p.plan) as string,
+              seats: num(p.seats) as number,
+              startDate: str(p.startDate) as string,
+              endDate: str(p.endDate) as string,
+              billingSystem: p.billingSystem === 'Stripe' ? 'Stripe' : 'Kleer',
+              status: p.status === 'Scheduled' ? 'Scheduled' : 'Active',
+              autoRenew: p.autoRenew === true,
+            },
+            { createdBy: 'Menti Orchestrator' },
+          );
           executed.subscriptionId = s.id;
           break;
         }

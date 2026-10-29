@@ -158,6 +158,7 @@ describe('the week, end to end', () => {
     expect(invoice.servicePeriod).toEqual({ start: '2026-11-20', end: '2027-11-19' });
     const sub = await adminApp.getSubscription(getCase(TORVIK)?.executed.subscriptionId as string);
     expect(sub.endDate).toBe('2028-11-19');
+    expect(sub.createdBy).toBe('Menti Orchestrator');
   });
 
   it('a pending discount approval holds the money', () => {

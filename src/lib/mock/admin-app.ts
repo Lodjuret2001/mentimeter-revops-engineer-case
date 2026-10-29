@@ -149,7 +149,7 @@ export function adminAppRoutes() {
         autoRenew: b.autoRenew === true,
         billingSystem: b.billingSystem as BillingSystem,
         billingReference: (b.billingReference as string | undefined) ?? null,
-        createdBy: 'api',
+        createdBy: c.req.header('x-created-by')?.trim() || 'api',
         createdAt: at,
         updatedAt: at,
       };

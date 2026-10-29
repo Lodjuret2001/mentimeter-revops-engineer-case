@@ -97,8 +97,11 @@ when a deal is reopened after setup (it flags finance instead), the Scheduled
 to Active flip on the start date (the admin app's job), real exchange rates,
 an approval flow for Deal Desk inside MentOS, and any AI calls.
 
-I did not change the mocks. The only config change is excluding the two HTML
-diagrams in `docs/` from Biome.
+One change to a mock: the admin app's `POST /subscriptions` now records an
+`X-Created-By` header in `createdBy` instead of always writing `api`, so a
+subscription says "Menti Orchestrator" the way one made by hand says
+"maja.ek@…". A real admin app would know its API clients. The only other
+config change is excluding the two HTML diagrams in `docs/` from Biome.
 
 ## Before it goes live
 

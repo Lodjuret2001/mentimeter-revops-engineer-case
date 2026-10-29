@@ -66,8 +66,12 @@ export const adminApp = {
   getSubscription: (subscriptionId: string) =>
     request<Subscription>('admin', 'GET', `/subscriptions/${id(subscriptionId)}`),
 
-  createSubscription: (input: CreateSubscriptionInput) =>
-    request<Subscription>('admin', 'POST', '/subscriptions', { body: input }),
+  /** `createdBy` names the integration in the subscription's audit field. */
+  createSubscription: (input: CreateSubscriptionInput, options: { createdBy?: string } = {}) =>
+    request<Subscription>('admin', 'POST', '/subscriptions', {
+      body: input,
+      headers: options.createdBy ? { 'x-created-by': options.createdBy } : undefined,
+    }),
 
   updateSubscription: (subscriptionId: string, changes: UpdateSubscriptionInput) =>
     request<Subscription>('admin', 'PATCH', `/subscriptions/${id(subscriptionId)}`, {
