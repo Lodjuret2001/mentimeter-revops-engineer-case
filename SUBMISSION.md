@@ -119,6 +119,6 @@ Roughly where you spent your time:
 
 ## Video
 
-[docs/video/menti-orchestrator-demo.mp4](docs/video/menti-orchestrator-demo.mp4),
+https://github.com/user-attachments/assets/f060765b-ba77-48fa-af5f-50fc2caa4128,
 a screen recording with voice-over, in the repo. GitHub plays it in the
 browser.
