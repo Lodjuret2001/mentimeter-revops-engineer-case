@@ -23,7 +23,7 @@ export default async function DealsPage(props: PageProps<'/deals'>) {
   const won = opportunities.filter(
     (o) => o.StageName === 'Closed Won' && o.CloseDate >= CASE_WEEK_START,
   );
-  const open = opportunities.filter((o) => !o.IsClosed);
+  const open = opportunities.filter((o) => !o.IsClosed && !o.StageName.startsWith('Closed'));
   const shown = (active === 'won' ? won : active === 'open' ? open : opportunities).sort((a, b) =>
     b.CloseDate.localeCompare(a.CloseDate),
   );
