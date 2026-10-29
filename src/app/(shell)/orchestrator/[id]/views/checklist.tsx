@@ -323,6 +323,51 @@ function AdminLink({ id, tab }: { id: string; tab?: 'workspaces' }) {
   );
 }
 
+export function DecisionCard({ record }: { record: HandoffCase }) {
+  const billing = billingSystem(record);
+  const open = record.findings.filter((f) => f.severity === 'hold' || f.severity === 'block');
+  const sentence = decisionSentence(record, billing, open);
+  const owners = OWNER_ORDER.filter((owner) => open.some((f) => f.owner === owner));
+  return (
+    <Section title="Decision">
+      <div className="rounded-lg border">
+        <div className="flex flex-wrap items-center gap-3 px-4 py-4">
+          <CaseStatusBadge status={record.status} />
+          <p className="font-medium text-base">{sentence}</p>
+        </div>
+        <div className="border-t px-4 py-3">
+          <div className="mb-2 text-muted-foreground text-xs uppercase tracking-wider">
+            Next step
+          </div>
+          {owners.length === 0 ? (
+            <p className="text-muted-foreground text-sm">No action needed.</p>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {owners.map((owner) => (
+                <div key={owner} className="flex flex-col gap-1 sm:flex-row sm:gap-4">
+                  <div className="w-32 shrink-0 pt-0.5">
+                    <Chip className="font-sans">{OWNER_LABEL[owner]}</Chip>
+                  </div>
+                  <ul className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
+                    {open
+                      .filter((f) => f.owner === owner)
+                      .map((f, index) => (
+                        <li key={`${f.rule}-${index}`}>
+                          {f.message}
+                          <FieldChip field={f.field} />
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </Section>
+  );
+}
+
 export async function ChecklistView({
   record,
   entries,
@@ -333,52 +378,15 @@ export async function ChecklistView({
   const billing = billingSystem(record);
   const currency = currencyOf(record);
   const open = record.findings.filter((f) => f.severity === 'hold' || f.severity === 'block');
-  const sentence = decisionSentence(record, billing, open);
   const rows = buildRows(record, billing, currency);
   const x = record.executed;
   const amount = money(x.billedAmount, currency);
-  const owners = OWNER_ORDER.filter((owner) => open.some((f) => f.owner === owner));
   const history = [...record.history].reverse();
   const logHref = `/orchestrator/log?opportunity=${encodeURIComponent(record.opportunityId)}`;
 
   return (
     <>
-      <Section title="Decision">
-        <div className="rounded-lg border">
-          <div className="flex flex-wrap items-center gap-3 px-4 py-4">
-            <CaseStatusBadge status={record.status} />
-            <p className="font-medium text-base">{sentence}</p>
-          </div>
-          <div className="border-t px-4 py-3">
-            <div className="mb-2 text-muted-foreground text-xs uppercase tracking-wider">
-              Next step
-            </div>
-            {owners.length === 0 ? (
-              <p className="text-muted-foreground text-sm">No action needed.</p>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {owners.map((owner) => (
-                  <div key={owner} className="flex flex-col gap-1 sm:flex-row sm:gap-4">
-                    <div className="w-32 shrink-0 pt-0.5">
-                      <Chip className="font-sans">{OWNER_LABEL[owner]}</Chip>
-                    </div>
-                    <ul className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
-                      {open
-                        .filter((f) => f.owner === owner)
-                        .map((f, index) => (
-                          <li key={`${f.rule}-${index}`}>
-                            {f.message}
-                            <FieldChip field={f.field} />
-                          </li>
-                        ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </Section>
+      <DecisionCard record={record} />
 
       <Section title="Checklist" count={rows.length}>
         <div className="rounded-lg border">

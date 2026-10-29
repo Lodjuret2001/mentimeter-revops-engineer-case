@@ -5,6 +5,7 @@ import { formatDateTime } from '@/lib/format';
 import type { Action, Finding, HandoffCase, LogEntry, Severity, Stage } from '@/lib/orchestrator';
 import { cn } from '@/lib/utils';
 import { CaseStatusBadge, Chip, LevelBadge, OWNER_LABEL, SeverityBadge } from '../../parts';
+import { DecisionCard } from './checklist';
 
 type Tone = 'good' | 'warn' | 'bad' | 'idle';
 
@@ -150,20 +151,6 @@ function FindingRows({ findings }: { findings: Finding[] }) {
         );
       })}
     </div>
-  );
-}
-
-function PlanRows({ actions }: { actions: Action[] }) {
-  return (
-    <Rows>
-      {actions.map((action, index) => (
-        <Row key={`${action.type}-${index}`} className="items-center">
-          <span className="w-20 shrink-0 text-xs capitalize">{action.system}</span>
-          <code className="font-mono text-muted-foreground text-xs">{action.type}</code>
-          <span className="min-w-0 flex-1">{action.summary}</span>
-        </Row>
-      ))}
-    </Rows>
   );
 }
 
@@ -338,42 +325,6 @@ function buildSteps(record: HandoffCase, run: LogEntry[]): Step[] {
 
   const setup = record.plan.filter((a) => a.stage === 'setup');
   const billing = record.plan.filter((a) => a.stage === 'billing');
-  const plan: Step = {
-    title: 'Plan actions',
-    tone: !started ? 'idle' : record.plan.length > 0 ? 'good' : 'idle',
-    result:
-      record.plan.length === 0
-        ? 'Nothing to do, everything is already in place'
-        : [
-            setup.length > 0 ? plural(setup.length, 'setup action') : null,
-            billing.length > 0 ? plural(billing.length, 'billing action') : null,
-          ]
-            .filter(Boolean)
-            .join(' and ')
-            .concat(' planned'),
-    body:
-      record.plan.length === 0 ? null : (
-        <div className="flex flex-col gap-3">
-          {setup.length > 0 ? (
-            <div className="flex flex-col gap-1.5">
-              <div className="text-muted-foreground text-xs">
-                Setup, runs even when billing is held
-              </div>
-              <PlanRows actions={setup} />
-            </div>
-          ) : null}
-          {billing.length > 0 ? (
-            <div className="flex flex-col gap-1.5">
-              <div className="text-muted-foreground text-xs">
-                Billing, runs only when every finding is info or warn
-              </div>
-              <PlanRows actions={billing} />
-            </div>
-          ) : null}
-        </div>
-      ),
-  };
-
   const runSetup = stageStep('Run setup actions', 'setup', matchActions(setup, run), {
     reached: started,
     held,
@@ -520,7 +471,7 @@ function buildSteps(record: HandoffCase, run: LogEntry[]): Step[] {
     ),
   };
 
-  return [receive, collect, assess, plan, runSetup, runBilling, writeback, notify, save];
+  return [receive, collect, assess, runSetup, runBilling, writeback, notify, save];
 }
 
 function HistoryRows({ history }: { history: HandoffCase['history'] }) {
@@ -546,6 +497,8 @@ export async function StepsView({ record, entries }: { record: HandoffCase; entr
 
   return (
     <>
+      <DecisionCard record={record} />
+
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border bg-muted/40 px-4 py-2 text-sm">
         <span>
           <span className="text-muted-foreground">Latest run:</span>{' '}
