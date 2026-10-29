@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { closeWonAction } from '@/app/(shell)/orchestrator/actions';
 import { Status } from '@/components/data/status';
+import { OpportunityEditForm } from '@/components/salesforce/edit-forms';
 import {
   FieldGrid,
   FieldSection,
@@ -215,6 +216,9 @@ export default async function DealPage(props: PageProps<'/deals/[id]'>) {
                   ),
                 ]}
               />
+            </FieldSection>
+            <FieldSection title="Edit">
+              <OpportunityEditForm opportunity={opportunity} />
             </FieldSection>
             {opportunity.Description ? (
               <FieldSection title="Description">

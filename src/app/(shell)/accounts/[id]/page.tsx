@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { DealsTable } from '@/components/data/deals-table';
 import { Status } from '@/components/data/status';
+import { AccountEditForm } from '@/components/salesforce/edit-forms';
 import {
   FieldGrid,
   FieldSection,
@@ -115,6 +116,9 @@ export default async function AccountPage(props: PageProps<'/accounts/[id]'>) {
                   ['Kleer customer number', account.Kleer_Customer_Number__c],
                 ]}
               />
+            </FieldSection>
+            <FieldSection title="Edit">
+              <AccountEditForm account={account} />
             </FieldSection>
           </LightningCard>
 
