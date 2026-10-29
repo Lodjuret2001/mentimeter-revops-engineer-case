@@ -10,10 +10,10 @@ const selectClass =
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="flex flex-col gap-1">
+    <div className="flex flex-col gap-1">
       <span className="text-[12px] text-muted-foreground">{label}</span>
       {children}
-    </label>
+    </div>
   );
 }
 
