@@ -2,178 +2,78 @@
 
 ## What I built, and for whom
 
-**Menti Orchestrator**: a service inside MentOS that takes over the Closed Won
-hand-off. It listens to Salesforce events, checks every deal against the
-finance checklist (R1 to R8) and the data, sets the customer up in the admin
-app, drafts the invoice in Kleer or creates the Stripe subscription, writes
-the IDs and a status back to Salesforce, and tells the one person who can fix
-each problem in Slack.
+**Menti Orchestrator**, a service inside MentOS that does the Closed Won
+hand-off. It listens to Salesforce events, checks each deal against the
+finance rules (R1 to R8), sets the customer up in the admin app, drafts the
+invoice in Kleer or charges the card in Stripe, writes the IDs back to
+Salesforce and tells the one person who can fix what is missing, in Slack.
 
-It is built for **finance and RevOps first**: Maja stops copying and starts
-reviewing drafts, Tom hears about failed cards the minute they fail, Kim gets a
-log instead of being the relay. Reps are second: they get one Slack DM per deal
-with exactly which Salesforce fields to fix, and the deal page shows what
-happened. Lea gets a DM the moment a workspace exists, so her kickoff has
-somewhere to happen.
+Built for finance and RevOps first: Maja reviews drafts instead of copying,
+Tom hears when a card fails, Kim gets a log instead of relaying. Reps get one
+DM per deal with the exact field to fix. The CSM gets a DM when the workspace
+exists.
 
-The orchestrator is its own API at `/api/orchestrator/*` (Hono, same pattern
-as the mocks) with a UI at `/orchestrator`: a case list with search and
-filters, and a case page that shows the decision (status in one sentence,
-next step and who owns it, by name) followed by the run as steps. The systems
-are left as they are; everything new lives in `src/lib/orchestrator`.
-
-To make the loop testable inside MentOS, deals and accounts in the Salesforce
-pages got an Edit section where every field can be changed, and open deals a
-"Mark Closed Won" button. Saving writes to Salesforce and re-runs the
-orchestrator, which is what a real `opportunity.updated` event would do.
-
-How a Closed Won event is handled, in order:
-
-1. Receive the event (webhook or `/sync` from the feed). Skip if that replayId
-   was already handled.
-2. Collect the deal as it looks **now** (not the event snapshot), the account,
-   billing contact, line items, price book, the original deal for add-ons and
-   renewals, and what already exists in the admin app, Kleer and Stripe.
-3. Assess: every finding gets a severity (`info`, `warn`, `hold`, `block`) and
-   an owner (rep, finance, credit control, RevOps, Deal Desk).
-4. Plan: setup actions (workspace, plan, subscription, end the old one) and
-   billing actions (Kleer draft or Stripe subscription).
-5. Run setup unless something is `block`.
-6. Run billing only if nothing is `hold` or `block`.
-7. Write back to Salesforce: `Subscription_ID__c`, `Invoice_Number__c`,
-   `Billing_Reference__c`, `Handoff_Status__c`, `Handoff_Issues__c`, and the
-   account's `Workspace_ID__c` and `Kleer_Customer_Number__c`.
-8. Slack, only when something changed since last time: deal owner (DM), CSM
-   (DM), finance (`#finance-billing`, with the invoice link into Kleer),
-   Deal Desk (`#deal-desk`), credit controller (DM), RevOps (DM, for a
-   missing CSM, two candidate workspaces or a failed action).
-9. Save the case and the log.
-
-On this week's data that gives 9 deals done, 6 set up with billing held, 2
-blocked and 1 reopened. Seven Kleer drafts, two card subscriptions, two old
-card subscriptions stopped, no duplicates when events are sent twice.
+On this week's deals: 9 done, 6 set up with billing on hold, 2 blocked,
+1 reopened. Nothing is created twice.
 
 ## Decisions
 
-- **Automate everything except sending.** Maja wants to see every invoice, so
-  Kleer invoices stop at draft and "Send invoice" is a button. Stripe has no
-  draft, so cards are charged directly, which R2 limits to 10,000 EUR.
-- **Do the harmless, hold the money.** When a deal has a `hold` finding (PO
-  missing, VAT missing, discount pending, card over the limit, currency
-  mismatch) the workspace and subscription are still created so the customer
-  has access on the start date (Lea), but nothing is invoiced or charged
-  (Tom, Maja). Only `block` findings (license count conflict, two candidate
-  workspaces, deal not Closed Won) stop setup too.
-- **The current opportunity wins over the event snapshot.** Halden & Co was
-  closed as 30 licenses and corrected to 35 two days later; acting on the
-  record as it is now means the first event already produces the right
-  numbers, and the correction is a no-op.
-- **Workspaces are matched by domain.** Kessler, Corvid and Helix already use
-  Mentimeter self-service. One match is linked both ways (account gets
-  `Workspace_ID__c`, workspace gets `salesforceAccountId`). Two matches (Helix
-  R&D and Helix Commercial) block until a human picks one, which is one
-  click. No match creates a workspace.
-- **R6 proration** uses days left over days in the existing period, with the
-  discount folded into the unit price so Kleer's own maths still adds up:
-  Halden pays 3,134.60 GBP for 111 of 365 days, not the 10,307.50 in
-  Salesforce.
-- **R7**: a new deal on an account with a live subscription is a plan move.
-  Nordlys' card subscription ends the day before the new contract starts, so
-  it is set to not renew. Sable & Finch's overlaps, so it is cancelled now and
-  the admin subscription ended the day before the new one.
-- **Multi-year, invoiced annually** (Torvik) bills year one and schedules a
-  two-year subscription; the finding says when year two is due.
-- **R2 needs exchange rates** and the case has none. I used rough constants
-  (USD 0.92, GBP 1.17, SEK 0.088 per EUR) and wrote them in one place.
-- **Wavecrest**: `Payment_Method__c` wins over the legacy card checkbox, with
-  a warning to the rep.
-- **Arcadia**: "FR 12 3456" fails a simple shape check for EU VAT numbers.
-  Kleer would accept it and charge no VAT; I would rather hold the invoice.
-- **Maris** is held for finance to decide the currency (deal in EUR, account
-  in CHF, no CHF price list).
-- **Corvid** is blocked, not guessed: the rep says 8, the record says 10.
-- **Kessler** gets no RM exemption from R3. It is a new customer and the
-  exemption is not decided, so I followed the rule and the reasons are in
-  the Slack DM.
-- **Polar Bear** (reopened) is never set up and nobody is pinged.
-- **State is a cache, systems are the truth.** If the orchestrator's own
-  memory is reset it rebuilds what it did from the systems (subscription by
-  ID or twin, invoice by `foreignId`, Stripe subscription by metadata) before
-  planning, so it never creates twice.
-
-What I chose not to build: Alex's one-message-a-day digest, automatic rollback
-when a deal is reopened after setup (it flags finance instead), the Scheduled
-to Active flip on the start date (the admin app's job), real exchange rates,
-an approval flow for Deal Desk inside MentOS, and any AI calls.
-
-One change to a mock: the admin app's `POST /subscriptions` now records an
-`X-Created-By` header in `createdBy` instead of always writing `api`, so a
-subscription says "Menti Orchestrator" the way one made by hand says
-"maja.ek@…". A real admin app would know its API clients. The only other
-config change is excluding the two HTML diagrams in `docs/` from Biome.
+- Automate everything except sending. Kleer invoices stop at draft, Maja
+  sends. Cards are charged directly, so R2 keeps them under 10,000 EUR.
+- Set the customer up, hold the money. A missing PO, VAT or approval holds
+  the invoice, not the workspace. Only unclear data (license counts disagree,
+  two candidate workspaces) stops setup.
+- Act on the deal as it is now, not the event snapshot. Halden's 30 to 35
+  licenses is a no-op.
+- Match workspaces by domain. One match is linked both ways, two is a human
+  choice, none creates one.
+- Add-ons prorate by day and co-term (R6). Plan moves end the old
+  subscription and stop the old card (R7). Multi-year bills year one.
+- The systems are the truth, the orchestrator's state is a cache. If it loses
+  its memory it rebuilds what it did from the systems before planning.
+- Rules only, no AI. Every finding has a rule, an owner and a field.
+- Not built: a daily digest for reps, rollback when a deal reopens after
+  setup, real exchange rates, Deal Desk approval inside MentOS.
+- One mock change: the admin app records an `X-Created-By` header so
+  subscriptions say "Menti Orchestrator" instead of "api".
 
 ## Before it goes live
 
-- Finance: is "set the customer up but hold the money" acceptable for a deal
-  with a pending Deal Desk approval, or should that block setup too? Tom's
-  answer could move `DD` from `hold` to `block`.
-- Finance and RMs: do long-standing customers get the R3 exemption? If yes,
-  the rule needs a definition of "long-standing" (account type Customer, or
-  an age) and the PO hold becomes a warning for them.
-- Kim: who owns the `Handoff_*__c` fields in Salesforce, and should
-  `Handoff_Issues__c` drive a report or a validation rule so reps see it
+- Tom: is "access now, invoice later" acceptable, or should a pending Deal
+  Desk approval block setup too?
+- Finance and RMs: do long-standing customers get the PO exemption?
+- Kim: should `Handoff_Issues__c` drive a validation rule so reps see it
   before they close?
-- Lea: is a Scheduled subscription enough for the kickoff, or does the
-  workspace plan need to flip only on the start date? Today the plan is set
-  immediately.
-- The admin app team: can it publish events (subscription activated,
-  self-service workspace created) so the orchestrator can react to things it
-  did not cause?
-- Which exchange rates and who maintains them.
+- Who maintains the exchange rates for R2.
+- Can the admin app and Stripe publish events, so the orchestrator reacts
+  to things it did not start?
 
 ## How to try it
 
 `npm install`, `npm run dev`, open http://localhost:3000.
 
-1. **Home** explains the orchestrator. Press **Sync Salesforce events** there
-   or on the Menti Orchestrator page. Or go to **Dev tools** and press
-   **Send all 21 to webhook**; the webhook hands each event to the
-   orchestrator.
-2. **Menti Orchestrator**, press **Needs action**. Open **Kessler Logistik**
-   (hold on a missing PO), **Helix Pharma** (two candidate workspaces, pick
-   one with a button), **Nordlys Energi** (plan move, old card subscription
-   stopped, Kleer draft with 25% VAT), **Halden & Co** (prorated add-on).
-3. Run the loop yourself: **Deals, Open**, pick Orbital Freight, press
-   **Mark Closed Won**. It lands on its case as held, Jordan gets a DM about
-   the PO number. Press **Open in Salesforce**, fill in a PO number under
-   **Edit**, save. The case is done, the draft is in Kleer and Maja has the
-   link in `#finance-billing`. The same works from the API:
-
-   ```bash
-   curl -X PATCH localhost:3000/api/mock/salesforce/opportunities/006Wb0000000lqRAAK \
-     -H 'content-type: application/json' -d '{"PO_Number__c":"PO-KL-5001"}'
-   curl -X POST localhost:3000/api/orchestrator/cases/006Wb0000000lqRAAK/run
-   ```
-4. **Slack** shows every DM and channel message; **Deals** shows the
-   write-back on each opportunity; **Kleer**, **Stripe** and **Admin app**
-   show what was created. **Dev tools, Request log** shows every call.
-5. `npm test` runs the whole week in memory and checks each rule against the
-   data (`test/orchestrator.test.ts`).
+1. Home, press **Open Menti Orchestrator**, then **Sync Salesforce events**
+   (or Dev tools, **Send all 21 to webhook**).
+2. Press **Needs action**. Open Kessler (PO missing), Helix (pick a
+   workspace), Nordlys (old card stopped, Kleer draft with VAT), Halden
+   (prorated add-on).
+3. Deals, Open, Orbital Freight, **Mark Closed Won**. It lands on its case as
+   held. **Open in Salesforce**, fill in a PO number under Edit, save. The
+   case is done, the draft is in Kleer, Maja has the link in
+   `#finance-billing`.
+4. `npm test` runs the whole week in memory and checks every rule.
 
 `GET /api/orchestrator` lists the API. `docs/as-is-flow.html` and
-`docs/system-map.html` are the diagrams I made to understand the current
-hand-off and the data ownership before building.
+`docs/system-map.html` are the diagrams I made before building.
 
 ## What I'd do next
 
-- A daily digest per rep instead of one DM per deal.
-- Listen to Stripe and admin app events (failed renewals, self-service
-  signups) so the orchestrator reacts to things it did not start.
-- A Deal Desk approval flow that writes `Discount_Approval__c` and re-runs.
-- Move the rule thresholds (card limit, discount limit, payment terms) into
-  configuration finance can edit.
-- A Salesforce validation rule that surfaces `Handoff_Issues__c` before close,
-  so Priya still closes first but sees what she owes.
+- A daily digest per rep.
+- React to Stripe and admin app events (failed renewals, self-service
+  signups).
+- Deal Desk approval that writes `Discount_Approval__c` and re-runs.
+- Thresholds (card limit, discount limit, payment terms) as config finance
+  can edit.
 
 ## Working with your AI tool
 
@@ -181,50 +81,26 @@ Your first prompt, pasted as you wrote it:
 
 > Okay, so jag har forkat ett repo och det här kommer vara då min business case för min ansökan som RevOps engineer. På Mentimeter. Och jag tror att mycket av det du behöver veta finns redan i detta forkade repot. Bland annat mina förhållanden, vad du ska förhålla dig till och liknande. Så jag vill att du börjar med att egentligen titta igenom allting så att du skapar dig en uppfattning av allting. Jag kommer använda mycket inspelning via röst. Så jag kommer inte skriva mycket, så ibland kanske de här texterna eller mina prompts till dig kommer vara lite grammatiskt fel kanske ibland att det står lite på engelska eller liknande för den speech-to-text-vägen. Är lite svajig ibland. Men jag vill att du försöker förstå där jag skriver. I någon slags overall kontext. Och när det är specifika saker och så vidare. Men börja med att kolla igenom projektet här. Och sen så ska vi ta oss an det och ge ungefär en 3 timmar från och med nu. Klockan är ungefär 15 just nu. Så vi är klockan 6 så är vi väl klara om inte innan.
 
-The full session export is in `docs/session/` (see the Video section for the
-walkthrough).
+The full session export is in `docs/session/`.
 
-Something your tool suggested or built that you changed or threw away, and
-why:
+Something your tool suggested or built that you changed or threw away:
 
-- After reading the repo it immediately laid out three solution directions and
-  asked me to pick. I stopped it. I wanted to understand the business, the
-  roles and how the hand-off works today before talking solutions, so we spent
-  the first hour on that instead, including the two diagrams in `docs/`. The
-  solution we ended up with is close to its first suggestion, but now I can
-  explain every piece of it.
-- It did not think of the case where the orchestrator loses its own state
-  while the systems keep theirs. I found it while verifying against the data:
-  resetting the orchestrator and syncing again created a second Nordlys
-  subscription. The fix is to rebuild "what did I already do" from the
-  systems before planning.
-- Three smaller things it got wrong on the first run and I caught in the
-  output: it counted the subscription it had just created as a "second live
-  subscription" on Nordlys, it double-counted Halden's added seats on the
-  second event, and it DM'd Sam about Polar Bear, a deal Sam reopened
-  himself.
-- When no CSM was on an account it only wrote a warning in its own log and
-  told nobody. Now that is a finding owned by RevOps and Kim gets the DM,
-  because assigning a CSM is a Salesforce data fix.
-- It reset the demo database while I was clicking through the app, which
-  lost the case I had just created. Lesson applied: the orchestrator now
-  rebuilds its state from the systems, and the tool asks before resetting.
-- I asked it for three different case page layouts (steps, systems board,
-  checklist) and kept the steps view with the checklist's decision card on
-  top. The other two were thrown away.
-- It wanted to import the EU country list from the Kleer mock. The mock is
-  third-party code, so the orchestrator has its own list.
+- It jumped to solution options after reading the repo. I stopped it and
+  spent the first hour on the business, the roles and the current flow.
+- It missed that the orchestrator could lose its state while the systems
+  kept theirs. Found while testing: a second Nordlys subscription. Fixed by
+  rebuilding state from the systems.
+- Smaller misses I caught in the output: it counted its own new subscription
+  as a duplicate, double-counted Halden's seats, DM'd a rep about a deal he
+  reopened himself, and told nobody when an account had no CSM.
+- I asked for three case page layouts and kept one.
 
 Roughly where you spent your time:
 
-- About 1 hour 15 minutes understanding the business, the roles, the data and
-  the current flow, and getting the diagrams made.
-- About 45 minutes deciding what to build and watching it get built.
-- About 1 hour running it on the week's data, clicking through the flow,
-  reading the output deal by deal, and fixing or tightening what was wrong
-  (names instead of IDs, who gets which Slack message, editing fields,
-  filters, the case page layout).
-- About 15 minutes on this document.
+- 1 h 15 understanding the business, data and current flow.
+- 45 min deciding and building.
+- 1 h running it on the data, clicking through, fixing.
+- 15 min on this document.
 
 ## Video
 
