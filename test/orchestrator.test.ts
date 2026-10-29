@@ -178,6 +178,15 @@ describe('the week, end to end', () => {
     expect(to('C04DEALDSK').some((t) => t.includes('Lumen'))).toBe(true);
     expect(to('U04TOMBCKR').some((t) => t.includes('Sable') && t.includes('failed'))).toBe(true);
     expect(to('C04FINBILL').filter((t) => t.includes('Draft invoice'))).toHaveLength(7);
+    expect(to('U04LEAFSCH').some((t) => t.includes('Nordlys') && t.includes('WS-1001'))).toBe(true);
+    expect(
+      to('U04LEAFSCH').some(
+        (t) => t.includes('Fjordline') && t.includes('Onboarding package: yes'),
+      ),
+    ).toBe(true);
+    expect(
+      to('U04LEAFSCH').some((t) => t.includes('Kessler') && t.includes('Billing is on hold')),
+    ).toBe(true);
   });
 
   it('picks up fixes in Salesforce on the next run', async () => {

@@ -112,8 +112,26 @@ export async function notify(
     );
   }
 
+  const users = await salesforce.listUsers();
+
+  const setUpNow = record.executed.subscriptionId && !previous?.executed.subscriptionId;
+  if (setUpNow) {
+    const csm =
+      users.find((u) => u.Id === ctx.account.CSM__c) ??
+      users.find(
+        (u) =>
+          u.UserRole.Name === 'CSM' &&
+          (u.Region__c === ctx.account.Region__c ||
+            (u.Region__c === 'EMEA' && ctx.account.Region__c !== 'North America')),
+      );
+    const onboarding = o.OpportunityLineItems.records.some((l) => l.ProductCode === 'ONB');
+    const text = `${link}: ${ctx.account.Name} is set up. Workspace ${record.executed.workspaceId}, subscription ${record.executed.subscriptionId}: ${o.Number_of_Licenses__c} ${o.Plan__c} from ${o.Start_Date__c}. Onboarding package: ${onboarding ? 'yes' : 'no'}.${record.status === 'held' ? ' Billing is on hold, access is not.' : ''}`;
+    if (csm) await dmByEmail(o.Id, csm.Email, text);
+    else
+      log(o.Id, 'warn', 'notify', 'No CSM on the account or for the region', { system: 'slack' });
+  }
+
   if (stripePastDue) {
-    const users = await salesforce.listUsers();
     const credit = users.find((u) => /credit/i.test(u.Title));
     const text = `${link}: card payment failed for ${record.executed.stripeSubscriptionId}. ${record.findings.find((f) => f.rule === 'CC')?.message ?? ''}`;
     if (credit) await dmByEmail(o.Id, credit.Email, text);
