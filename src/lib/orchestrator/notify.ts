@@ -58,9 +58,8 @@ export async function notify(
   const forRep = record.findings.filter(
     (f) => f.owner === 'rep' && (f.severity === 'hold' || f.severity === 'block'),
   );
-  const forFinance = record.findings.filter(
-    (f) => (f.owner === 'finance' || f.owner === 'revops') && f.severity !== 'info',
-  );
+  const forFinance = record.findings.filter((f) => f.owner === 'finance' && f.severity !== 'info');
+  const forRevops = record.findings.filter((f) => f.owner === 'revops' && f.severity !== 'info');
   const forDealDesk = record.findings.filter((f) => f.owner === 'deal_desk');
 
   const digest = hash(
@@ -123,21 +122,23 @@ export async function notify(
 
   const users = await salesforce.listUsers();
 
+  if (forRevops.length > 0) {
+    const revops = users.find((u) => u.UserRole.Name === 'RevOps');
+    const text = `${header}\nStatus: ${statusLine[record.status]}.\n\nNeeds RevOps:\n${forRevops.map(bullet).join('\n')}\n\n${footer}`;
+    if (revops) await dmByEmail(o.Id, revops.Email, text);
+    else await post(o.Id, '#revops-help', text);
+  }
+
   const setUpNow = record.executed.subscriptionId && !previous?.executed.subscriptionId;
   if (setUpNow) {
-    const csm =
-      users.find((u) => u.Id === ctx.account.CSM__c) ??
-      users.find(
-        (u) =>
-          u.UserRole.Name === 'CSM' &&
-          (u.Region__c === ctx.account.Region__c ||
-            (u.Region__c === 'EMEA' && ctx.account.Region__c !== 'North America')),
-      );
+    const csm = ctx.csm;
     const onboarding = o.OpportunityLineItems.records.some((l) => l.ProductCode === 'ONB');
     const text = `${header}\n${ctx.account.Name} is set up and ready for kickoff.\n•  Workspace ${record.executed.workspaceId}, subscription ${record.executed.subscriptionId}\n•  ${o.Number_of_Licenses__c} ${o.Plan__c} licenses from ${o.Start_Date__c}\n•  Onboarding package: ${onboarding ? 'yes' : 'no'}${record.status === 'held' ? '\n•  Billing is on hold, access is not.' : ''}\n\n${footer}`;
     if (csm) await dmByEmail(o.Id, csm.Email, text);
     else
-      log(o.Id, 'warn', 'notify', 'No CSM on the account or for the region', { system: 'slack' });
+      log(o.Id, 'warn', 'notify', 'No CSM to tell, RevOps asked to assign one', {
+        system: 'slack',
+      });
   }
 
   if (stripePastDue) {

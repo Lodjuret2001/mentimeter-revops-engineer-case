@@ -20,6 +20,7 @@ export interface DealContext {
   opportunity: OpportunityWithLines;
   account: SalesforceAccount;
   owner: SalesforceUser | null;
+  csm: SalesforceUser | null;
   billingContact: SalesforceContact | null;
   original: OpportunityWithLines | null;
   originalSubscription: Subscription | null;
@@ -139,6 +140,15 @@ export async function collect(opportunityId: string): Promise<DealContext> {
     opportunity,
     account,
     owner: users.find((u) => u.Id === opportunity.OwnerId) ?? null,
+    csm:
+      users.find((u) => u.Id === account.CSM__c) ??
+      users.find(
+        (u) =>
+          u.UserRole.Name === 'CSM' &&
+          (u.Region__c === account.Region__c ||
+            (u.Region__c === 'EMEA' && account.Region__c !== 'North America')),
+      ) ??
+      null,
     billingContact,
     original,
     originalSubscription,

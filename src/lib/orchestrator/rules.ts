@@ -508,6 +508,16 @@ export function assess(ctx: DealContext): Assessment {
     add('WS', 'info', 'No workspace yet, one will be created', 'revops');
   }
 
+  if (won && !ctx.csm) {
+    add(
+      'CSM',
+      'warn',
+      `No CSM on the account and none covers ${a.Region__c}. Assign one so the kickoff has an owner.`,
+      'revops',
+      'CSM__c',
+    );
+  }
+
   const openInvoice = ctx.kleerInvoices.find(
     (i) => i.type === 'invoice' && i.status !== 'credited',
   );
