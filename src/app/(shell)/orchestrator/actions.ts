@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { kindOf, READ_ONLY } from '@/components/salesforce/fields';
 import { today } from '@/lib/clock';
 import { salesforce } from '@/lib/connectors';
 import {
@@ -60,42 +61,33 @@ export async function closeWonAction(formData: FormData) {
   redirect(`/orchestrator/${id}`);
 }
 
-const OPPORTUNITY_TEXT = [
-  'PO_Number__c',
-  'Payment_Method__c',
-  'Discount_Approval__c',
-  'Start_Date__c',
-  'End_Date__c',
-  'CurrencyIsoCode',
-];
-const ACCOUNT_TEXT = [
-  'Legal_Entity_Name__c',
-  'VAT_Number__c',
-  'Invoice_Email__c',
-  'CurrencyIsoCode',
-  'Workspace_ID__c',
-];
-
-function textFields(formData: FormData, keys: string[]) {
-  const fields: Record<string, string | null> = {};
-  for (const key of keys) {
-    if (!formData.has(key)) continue;
-    const value = text(formData, key).trim();
-    fields[key] = value === '' ? null : value;
+function patchFrom(
+  formData: FormData,
+  current: Record<string, unknown>,
+): Record<string, string | number | boolean | null> {
+  const patch: Record<string, string | number | boolean | null> = {};
+  for (const [field, value] of Object.entries(current)) {
+    if (READ_ONLY.has(field) || !formData.has(field)) continue;
+    const raw = text(formData, field).trim();
+    const kind = kindOf(field, value);
+    let next: string | number | boolean | null;
+    if (kind === 'boolean') next = raw === 'true';
+    else if (kind === 'number') next = raw === '' ? null : Number(raw);
+    else next = raw === '' ? null : raw;
+    if (kind === 'number' && typeof next === 'number' && !Number.isFinite(next)) continue;
+    if (next !== value) patch[field] = next;
   }
-  return fields;
+  return patch;
 }
 
 export async function editOpportunityAction(formData: FormData) {
   const id = text(formData, 'opportunityId');
   if (!id) return;
-  const licenses = Number(text(formData, 'Number_of_Licenses__c'));
-  await salesforce.updateOpportunity(id, {
-    ...textFields(formData, OPPORTUNITY_TEXT),
-    ...(Number.isInteger(licenses) && licenses > 0 ? { Number_of_Licenses__c: licenses } : {}),
-  });
-  const opportunity = await salesforce.getOpportunity(id);
-  if (opportunity.StageName === 'Closed Won' || getCase(id)) {
+  const { OpportunityLineItems: _lines, ...current } = await salesforce.getOpportunity(id);
+  const patch = patchFrom(formData, current);
+  if (Object.keys(patch).length > 0) await salesforce.updateOpportunity(id, patch);
+  const after = await salesforce.getOpportunity(id);
+  if (after.StageName === 'Closed Won' || getCase(id)) {
     await processOpportunity(id, { trigger: 'opportunity.updated (edited in MentOS)' });
   }
   revalidatePath('/', 'layout');
@@ -104,10 +96,9 @@ export async function editOpportunityAction(formData: FormData) {
 export async function editAccountAction(formData: FormData) {
   const id = text(formData, 'accountId');
   if (!id) return;
-  await salesforce.updateAccount(id, {
-    ...textFields(formData, ACCOUNT_TEXT),
-    PO_Required__c: text(formData, 'PO_Required__c') === 'Yes',
-  });
+  const current = await salesforce.getAccount(id);
+  const patch = patchFrom(formData, current);
+  if (Object.keys(patch).length > 0) await salesforce.updateAccount(id, patch);
   const deals = await salesforce.listOpportunities({ accountId: id, stage: 'Closed Won' });
   for (const deal of deals) {
     if (getCase(deal.Id)) {
